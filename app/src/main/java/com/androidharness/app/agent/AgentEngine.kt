@@ -268,7 +268,7 @@ class AgentEngine(
         }
         var tools: List<com.androidharness.app.llm.ToolSchema> = emptyList()
         val chatHistory = if (agentContextEnabled) history else com.androidharness.app.local.LocalChatCodec.plainChatMessages(history)
-        val working = (if (localChat) chatHistory.map { it.withImagesResolved() } else trimHistory(
+        val working = (if (localChat) chatHistory.map { it.withImagesResolved() } else ContextHygiene.trimHistory(
             ContextHygiene.shrinkToolResults(history.map { it.withImagesResolved() }),
             maxContextTokens, options.maxOutputTokens,
         )).toMutableList()
@@ -1502,27 +1502,6 @@ class AgentEngine(
             cutOff -> "Model hit the token limit before producing output."
             else -> "Model returned no output at all: the model may be down, rate-limited, or incompatible."
         }
-    }
-
-    private fun trimHistory(
-        history: List<ChatMessage>,
-        maxContextTokens: Int,
-        maxOutputTokens: Int,
-    ): List<ChatMessage> {
-        // reserve space for system prompt, tool schemas and the model's reply
-        val budgetChars = (maxContextTokens - maxOutputTokens - 8_192) * 4
-        if (budgetChars <= 0) return history.takeLast(2)
-        var total = history.sumOf { it.text.length }
-        if (total <= budgetChars) return history
-        val kept = history.toMutableList()
-        while (total > budgetChars && kept.size > 2) {
-            val removed = kept.removeAt(0)
-            total -= removed.text.length
-            while (kept.firstOrNull()?.role == Role.TOOL && kept.size > 2) {
-                total -= kept.removeAt(0).text.length
-            }
-        }
-        return kept
     }
 
     private fun estimateContext(

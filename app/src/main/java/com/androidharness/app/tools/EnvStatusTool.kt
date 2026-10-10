@@ -21,10 +21,10 @@ class EnvStatusTool(
 ) : Tool {
     override val name = "env_status"
     override val description =
-        "Report the live state of the device environment: Shizuku connection + user-service state, " +
-        "the Linux toolchain installation, which execution tier the shell tool will use for the " +
-        "current workspace, and what the user must do to unlock more. Call this instead of probing " +
-        "/data/local/tmp or testing exec paths yourself: the harness knows the authoritative state."
+        "Report the live device environment: Shizuku connection + user-service state, the Linux " +
+        "toolchain install, which execution tier the shell uses for the current workspace, and what " +
+        "the user must do to unlock more. Call this instead of probing /data/local/tmp or testing " +
+        "exec paths yourself: the harness knows the authoritative state."
     override val parametersSchema = Schema.obj(emptyMap())
     override val isReadOnly = true
 

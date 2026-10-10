@@ -24,18 +24,18 @@ class ReadLogcatTool(
 ) : Tool {
     override val name = "read_logcat"
     override val description =
-        "Read recent Android logcat logs with optional filtering by log level, tag, package name, buffer, or keyword. " +
-        "Useful for debugging Android app crashes, ANRs, runtime exceptions, and system events. " +
-        "When Shizuku is running and granted, captures device-wide logs; otherwise captures logs available to the app."
+        "Read recent Android logcat output, filtered by level, tag, package, buffer, or keyword. " +
+        "Use it to debug app crashes, ANRs, exceptions, and system events. With Shizuku running " +
+        "and granted it captures device-wide logs; otherwise only this app's logs."
 
     override val parametersSchema = Schema.obj(
         mapOf(
-            "lines" to Schema.integer("Number of recent log lines to retrieve (default 100, max 1000)."),
-            "level" to Schema.string("Minimum log level: V (Verbose), D (Debug), I (Info), W (Warn), E (Error), F (Fatal). Default is V."),
-            "tag" to Schema.string("Filter logs by specific tag (e.g., 'AndroidRuntime', 'ActivityManager', or custom app tag)."),
-            "package_name" to Schema.string("Filter logs by Android package name (e.g., 'com.example.app'). Resolves its PID if running or filters matching log lines."),
-            "buffer" to Schema.string("Logcat ring buffer to read from: 'main', 'system', 'crash', 'events', 'radio', 'all', or 'default'. Default is 'default' (main, system, crash)."),
-            "filter" to Schema.string("Case-insensitive keyword/substring to filter the output lines."),
+            "lines" to Schema.integer("Recent log lines to retrieve (default 100, max 1000)."),
+            "level" to Schema.string("Minimum level: V, D, I, W, E, F (default V)."),
+            "tag" to Schema.string("Filter by tag (e.g. 'AndroidRuntime', 'ActivityManager', an app tag)."),
+            "package_name" to Schema.string("Filter by Android package name (e.g. 'com.example.app'); resolves its PID when running."),
+            "buffer" to Schema.string("Ring buffer: 'main', 'system', 'crash', 'events', 'radio', 'all', or 'default' (default: main, system, crash)."),
+            "filter" to Schema.string("Case-insensitive keyword to filter output lines."),
         ),
     )
 

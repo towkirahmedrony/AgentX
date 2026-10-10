@@ -45,6 +45,9 @@ enum class PromptTrigger {
     FULL_ACCESS,
     PLAN_MODE,
 
+    /** Browser automation tools are present in this run. */
+    BROWSER_AVAILABLE,
+
     SKILLS_PRESENT,
     AGENTS_MD_PRESENT,
     MEMORY_PRESENT,

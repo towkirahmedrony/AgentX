@@ -55,13 +55,13 @@ class CreateDirTool : Tool {
 class DeleteFileTool : Tool {
     override val name = "delete_file"
     override val description =
-        "Delete a file or directory in the workspace. Deleting a directory that contains anything " +
-            "requires recursive=true. This cannot be undone. The workspace root can never be deleted."
+        "Delete a file or directory in the workspace. Deleting a non-empty directory requires " +
+            "recursive=true. Cannot be undone; the workspace root can never be deleted."
     override val parametersSchema = Schema.obj(
         mapOf(
             "path" to Schema.string("Path relative to the workspace root. Must not be the workspace root."),
             "recursive" to Schema.boolean(
-                "Required (true) to delete a directory that has files or subdirectories inside it.",
+                "Required (true) for a directory that contains files or subdirectories.",
             ),
         ),
         required = listOf("path"),
@@ -107,15 +107,13 @@ class DeleteFileTool : Tool {
 class MoveFileTool : Tool {
     override val name = "move_file"
     override val description =
-        "Move or rename a file within the workspace. Refuses to overwrite an existing destination " +
-            "file unless overwrite=true."
+        "Move or rename a file in the workspace. Refuses to overwrite an existing destination file unless overwrite=true."
     override val parametersSchema = Schema.obj(
         mapOf(
             "source" to Schema.string("Current path relative to the workspace root."),
             "destination" to Schema.string("New path relative to the workspace root."),
             "overwrite" to Schema.boolean(
-                "Replace an existing destination file. Default false: the move fails instead of " +
-                    "silently destroying the file that is already there.",
+                "Replace an existing destination file. Default false: the move fails instead of destroying it.",
             ),
         ),
         required = listOf("source", "destination"),
@@ -340,10 +338,9 @@ class TodoWriteTool(
 ) : Tool {
     override val name = "todo_write"
     override val description =
-        "Maintain a task list for this session. Use it to plan multi-step work: mark tasks " +
-        "in_progress when you start them and completed when done. Replaces the whole list. " +
-        "The todos parameter must be a JSON array like " +
-        "[{\"content\": \"Do X\", \"status\": \"pending\"}], with statuses: pending, in_progress, completed."
+        "Maintain a task list for this session: mark tasks in_progress when you start and " +
+        "completed when done. Replaces the whole list. todos is a JSON array of " +
+        "{\"content\": string, \"status\": \"pending\"|\"in_progress\"|\"completed\"}."
     override val parametersSchema = Schema.obj(
         mapOf(
             "todos" to Schema.string(

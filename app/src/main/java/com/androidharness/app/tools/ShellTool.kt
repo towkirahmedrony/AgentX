@@ -18,14 +18,11 @@ class ShellTool(
 ) : Tool {
     override val name = "shell"
     override val description =
-        "Run a shell command on the device. Uses SSH for an SSH workspace; " +
-        "otherwise runs with the best available native environment: " +
-        "a full Linux userspace (bash, git, python, node…) as the app when installed, " +
-        "Shizuku ADB-shell privileges (plus the same toolchain) when Shizuku is connected and " +
-        "the target folder needs it, otherwise toybox sh. If the active workspace is a picked " +
-        "folder (SAF), the command runs in the app's shell workspace and a note is added. " +
-        "Returns the exit code plus captured stdout and stderr as separate sections; output " +
-        "written before a timeout is preserved."
+        "Run a shell command. SSH workspace: over SSH. Otherwise the best native environment: " +
+        "full Linux userspace (bash, git, python, node…) when installed; Shizuku ADB-shell " +
+        "privileges (same toolchain) when connected and the folder needs it; else toybox sh. " +
+        "In a SAF (picked folder) workspace it runs in the app's shell workspace with a note. " +
+        "Returns exit code plus stdout and stderr separately; output written before a timeout is preserved."
     override val parametersSchema = Schema.obj(
         mapOf(
             "command" to Schema.string("The shell command to run."),

@@ -270,8 +270,8 @@ class GitStatusTool(
 ) : Tool {
     override val name = "git_status"
     override val description =
-        "Show git status for the workspace repository (branch + changed files). " +
-        "Use before committing or to answer 'what changed'."
+        "Show git status for the workspace repository (branch + changed files). Use before " +
+        "committing or to answer 'what changed'."
     override val parametersSchema = Schema.obj(emptyMap())
     override val isReadOnly = true
 
@@ -285,8 +285,7 @@ class GitDiffTool(
 ) : Tool {
     override val name = "git_diff"
     override val description =
-        "Show the git diff of unstaged (or staged) changes in the workspace repository, " +
-        "optionally limited to one path."
+        "Show the git diff of unstaged (or staged) changes, optionally limited to one path."
     override val parametersSchema = Schema.obj(
         mapOf(
             "path" to Schema.string("Optional file path to limit the diff to."),
@@ -319,9 +318,8 @@ class GitCommitTool(
 ) : Tool {
     override val name = "git_commit"
     override val description =
-        "Stage all changes in the workspace repository and commit them with the given " +
-        "message. Runtime artifacts under .harness/ are never staged. Runs as a " +
-        "modifying operation, so the user approves it first."
+        "Stage all workspace changes and commit them with the given message. Runtime " +
+        "artifacts under .harness/ are never staged. Modifying: the user approves it first."
     override val parametersSchema = Schema.obj(
         mapOf("message" to Schema.string("The commit message.")),
         required = listOf("message"),
@@ -377,13 +375,13 @@ class GitLogTool(
 ) : Tool {
     override val name = "git_log"
     override val description =
-        "Show recent commit history of the workspace repository (short hash, date, author, " +
-        "subject), optionally limited to one path. Use it to answer 'what happened recently', " +
-        "to find a commit hash for git_show, or to check whether a file was touched before."
+        "Show recent commits (short hash, date, author, subject), optionally limited to one " +
+        "path. Use it to see what changed recently, to find a hash for git_show, or to check " +
+        "whether a file was touched before."
     override val parametersSchema = Schema.obj(
         mapOf(
             "limit" to Schema.integer("Maximum number of commits (default 20, max 100)."),
-            "path" to Schema.string("Optional file or directory filter within the workspace repository; does not select another repository."),
+            "path" to Schema.string("Optional file or directory filter within this repository."),
             "stat" to Schema.string("Pass \"true\" to append a per-commit change summary (--stat)."),
         ),
     )
@@ -405,8 +403,8 @@ class GitShowTool(
 ) : Tool {
     override val name = "git_show"
     override val description =
-        "Show one commit: message, per-file stats and the patch. Defaults to HEAD. Use after " +
-        "git_log to inspect a specific change. Pass no_patch=true for just the message and stats."
+        "Show one commit: message, per-file stats and the patch (default HEAD). Use after " +
+        "git_log to inspect a specific change; no_patch=true shows just message + stats."
     override val parametersSchema = Schema.obj(
         mapOf(
             "hash" to Schema.string("Commit hash or ref (default HEAD)."),
@@ -451,9 +449,8 @@ class GitBranchManageTool(
     override val name = "git_branch_manage"
     override val description =
         "Create or delete a git branch in the workspace repository. action='create' makes a " +
-        "new branch pointing at HEAD (does not switch to it; use git_checkout); " +
-        "action='delete' removes it (-d refuses unmerged branches unless force=true). " +
-        "Runs as a modifying operation, so the user approves it first."
+        "branch at HEAD (does not switch; use git_checkout); action='delete' removes it " +
+        "(-d refuses unmerged branches unless force=true). Modifying: the user approves it first."
     override val parametersSchema = Schema.obj(
         mapOf(
             "action" to Schema.string("create | delete (required)."),
@@ -487,10 +484,9 @@ class GitCheckoutTool(
 ) : Tool {
     override val name = "git_checkout"
     override val description =
-        "Switch the workspace repository to another branch, or restore files. With branch: " +
-        "switches to it (create=true makes it first). With paths: discards uncommitted " +
-        "changes to those files (destructive). With both: restores the paths from the " +
-        "given branch. Runs as a modifying operation, so the user approves it first."
+        "Switch branches or restore files. With branch: switch to it (create=true makes it " +
+        "first). With paths: discard uncommitted changes to those files (destructive). With " +
+        "both: restore the paths from that branch. Modifying: the user approves it first."
     override val parametersSchema = Schema.obj(
         mapOf(
             "branch" to Schema.string("Branch to switch to (or to restore paths from)."),
@@ -524,12 +520,11 @@ class GitPushTool(
 ) : Tool {
     override val name = "git_push"
     override val description =
-        "Push committed work to a remote (default origin; branch defaults to the current one). " +
-        "GitHub HTTPS remotes authenticate automatically with the stored GitHub token " +
-        "(doctor --github verifies it); other HTTPS remotes need credentials already set up " +
-        "in the shell. If a branch tracks nothing or the wrong upstream, the push is sent " +
-        "with -u so tracking points at the same-named remote branch. " +
-        "Runs as a modifying operation, so the user approves it first."
+        "Push committed work to a remote (default origin; branch defaults to the current " +
+        "one). GitHub HTTPS remotes authenticate automatically with the stored token " +
+        "(doctor --github verifies it); other HTTPS remotes need credentials already in the " +
+        "shell. A branch with missing or wrong upstream is pushed with -u. Modifying: the " +
+        "user approves it first."
     override val parametersSchema = Schema.obj(
         mapOf(
             "remote" to Schema.string("Remote name (default origin)."),
@@ -575,10 +570,10 @@ class GitPullTool(
 ) : Tool {
     override val name = "git_pull"
     override val description =
-        "Pull changes from a remote (default origin) into the current branch. mode: " +
-        "'ff-only' (default) refuses to create a merge commit, 'merge' allows one, " +
-        "'rebase' replays local commits on top. On conflicts: resolve the marked files, " +
-        "then stage and commit them. Runs as a modifying operation, so the user approves it first."
+        "Pull a remote (default origin) into the current branch. mode: 'ff-only' (default) " +
+        "refuses a merge commit, 'merge' allows one, 'rebase' replays local commits on top. " +
+        "On conflicts, resolve the marked files then stage and commit. Modifying: the user " +
+        "approves it first."
     override val parametersSchema = Schema.obj(
         mapOf(
             "remote" to Schema.string("Remote name (default origin)."),

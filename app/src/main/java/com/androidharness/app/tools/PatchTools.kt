@@ -13,9 +13,9 @@ import kotlinx.serialization.json.jsonPrimitive
 class MultiEditTool : Tool {
     override val name = "multi_edit"
     override val description =
-        "Apply multiple edits to one file atomically. Each edit is a string replacement " +
-            "(tolerant of whitespace drift); the whole call fails if any edit's old_string is missing or ambiguous. " +
-            "Applies edits in order, so make each old_string unique against the result of the previous edits."
+        "Apply several string replacements to one file atomically. Each edit tolerates " +
+            "whitespace drift; the whole call fails if any old_string is missing or ambiguous. " +
+            "Edits apply in order, so make each old_string unique against the previous edits' result."
     override val parametersSchema = Schema.obj(
         mapOf(
             "path" to Schema.string("File path relative to the workspace root."),
@@ -24,7 +24,7 @@ class MultiEditTool : Tool {
                     mapOf(
                         "old_string" to Schema.string("The text to replace."),
                         "new_string" to Schema.string("The replacement text."),
-                        "replace_all" to Schema.boolean("Replace all occurrences. Defaults to false."),
+                        "replace_all" to Schema.boolean("Replace all occurrences. Default false."),
                     ),
                     required = listOf("old_string", "new_string"),
                 ),
@@ -90,22 +90,18 @@ class MultiEditTool : Tool {
 class ApplyPatchTool : Tool {
     override val name = "apply_patch"
     override val description =
-        "Apply a unified diff to the workspace. Format: '--- a/path', '+++ b/path', '@@ ...' hunks. " +
-            "Use '--- /dev/null' to create a file and '+++ /dev/null' to delete one. " +
-            "The whole patch is validated first: if ANY hunk fails to match, nothing is written " +
-            "and every failing hunk is reported by number and reason (atomic across hunks and files). " +
-            "Context lines must match the CURRENT file contents (whitespace drift is tolerated); " +
-            "a trailing newline terminates the last line, so never end a hunk with an extra empty " +
-            "context line for the file's final newline. Set dry_run=true to validate only. " +
-            "Hunks are matched against the file as it exists when this call runs; " +
-            "if earlier edits in the same turn changed the file, " +
-            "re-read it and rebuild the patch instead of reusing a pre-computed diff."
+        "Apply a unified diff: '--- a/path', '+++ b/path', '@@' hunks; '--- /dev/null' creates a " +
+            "file, '+++ /dev/null' deletes one. The whole patch is validated first: if ANY hunk " +
+            "fails to match, nothing is written and each failure is reported by number and reason " +
+            "(atomic across hunks and files). Context lines must match the CURRENT contents " +
+            "(whitespace drift tolerated); a trailing newline terminates the last line, so never " +
+            "add an extra empty context line for the final newline. dry_run=true validates only. " +
+            "Rebuild the patch after an earlier edit in the same turn."
     override val parametersSchema = Schema.obj(
         mapOf(
             "patch" to Schema.string("The complete unified diff text."),
             "dry_run" to Schema.boolean(
-                "Validate the patch against current file contents and report what would change, " +
-                    "without writing anything. Defaults to false.",
+                "Validate against current contents and report what would change, without writing. Default false.",
             ),
         ),
         required = listOf("patch"),

@@ -29,9 +29,9 @@ private fun readMemoryNode(workspace: WorkspaceFs, relPath: String): String? {
 class MemoryReadTool : Tool {
     override val name = "memory_read"
     override val description =
-        "Read agent memory without truncation. With no arguments: the core memory plus a " +
-            "list of available topic files. With topic: that topic file in full. Use " +
-            "memory_search first when you are looking for where something was recorded."
+        "Read agent memory in full (no truncation). Without arguments: the core memory plus " +
+            "the topic file list. With topic: that topic file. Use memory_search first when " +
+            "looking for where something was recorded."
     override val parametersSchema = Schema.obj(
         mapOf(
             "topic" to Schema.string(
@@ -80,9 +80,9 @@ class MemoryReadTool : Tool {
 class MemorySearchTool : Tool {
     override val name = "memory_search"
     override val description =
-        "Search agent memory (core memory and all topic files) for a case-insensitive " +
-            "substring. Returns file:line matches. Use it to recall details that are not in " +
-            "the always-loaded core memory, and before memory_write to avoid duplicate notes."
+        "Search agent memory (core and all topic files) for a case-insensitive substring; " +
+            "returns file:line matches. Use it to recall details not in the always-loaded core " +
+            "memory, and before memory_write to avoid duplicate notes."
     override val parametersSchema = Schema.obj(
         mapOf("query" to Schema.string("Text to search for (case-insensitive).")),
         required = listOf("query"),

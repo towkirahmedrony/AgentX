@@ -51,17 +51,45 @@ class ToolRegistry(private val tools: List<Tool>) {
     fun withExtra(extra: List<Tool>): ToolRegistry =
         if (extra.isEmpty()) this else ToolRegistry(tools + extra)
 
+    /** All static + extra tools, name-sorted (used by tool_search). */
+    fun all(): List<Tool> = tools.sortedBy { it.name }
+
+    /**
+     * Tools whose name, description or group matches [query], name-sorted. An
+     * empty query returns every tool. Used to answer a `tool_search` call.
+     */
+    fun search(query: String): List<Tool> {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return all()
+        return tools.filter { tool ->
+            tool.name.lowercase().contains(q) ||
+                tool.description.lowercase().contains(q) ||
+                ToolGroups.groupFor(tool.name).id.contains(q)
+        }.sortedBy { it.name }
+    }
+
     /**
      * [descriptionOverrides] replaces a tool's description only: names, ordering,
      * schemas and availability are untouched, so customization can never change
      * what a tool does. Unknown names and blank values are ignored.
+     *
+     * [groups], when non-null, restricts the result to those [ToolGroup]s. The
+     * withheld tools remain in the registry and are still executed if the model
+     * calls them; only their schema is omitted from the request. Ordering stays
+     * name-sorted so a growing active-set keeps every previously sent tool in
+     * the same relative position (prompt-cache friendly).
      */
     fun schemas(
         readOnlyOnly: Boolean = false,
         context: ToolContext? = null,
         descriptionOverrides: Map<String, String> = emptyMap(),
+        groups: Set<ToolGroup>? = null,
     ) = byName.values
-        .filter { (!readOnlyOnly || it.isReadOnly) && (context == null || it.isAvailable(context)) }
+        .filter {
+            (!readOnlyOnly || it.isReadOnly) &&
+                (context == null || it.isAvailable(context)) &&
+                (groups == null || ToolGroups.groupFor(it.name) in groups)
+        }
         .sortedBy { it.name }
         .map {
             val custom = descriptionOverrides[it.name]?.takeIf { value -> value.isNotBlank() }
@@ -132,6 +160,7 @@ class ToolRegistry(private val tools: List<Tool>) {
                 CodeGraphImpactTool(codeGraph),
                 CodeGraphAffectedTool(codeGraph),
                 CodeGraphSyncTool(codeGraph),
+                ToolSearchTool(),
             )
             if (imageStore != null) {
                 baseTools.add(ReadImageTool(imageStore))

@@ -12,6 +12,8 @@ import com.androidharness.app.llm.RequestOptions
 import com.androidharness.app.llm.StreamEvent
 import com.androidharness.app.tools.FuzzyEdit
 import com.androidharness.app.tools.ToolContext
+import com.androidharness.app.tools.ToolGroup
+import com.androidharness.app.tools.ToolGroups
 import com.androidharness.app.tools.ToolRegistry
 import com.androidharness.app.tools.ToolResult
 import com.androidharness.app.workspace.UnboundedFileFs
@@ -242,20 +244,29 @@ class AgentEngine(
         var replySettings = cavemanSettings()
         val localChat = com.androidharness.app.local.LocalModelCatalog.isLocal(config.id)
         val agentContextEnabled = !localChat || replySettings.localModelAgentContext
+        // Browser-only guidance is included only when the browser tools exist in
+        // this run (a static registry plus any run-scoped extras).
+        val browserToolsAvailable = registry.get("browser_navigate") != null ||
+            extraTools.any { it.name == "browser_navigate" }
         fun runSystemPrompt(fullAccess: Boolean): String =
             if (!agentContextEnabled) "" else systemPrompt(
                 workspace, mode, fullAccess = fullAccess, repoMapEnabled = repoMapEnabled,
                 overrides = replySettings.promptOverrides,
                 compactSkillsCatalog = replySettings.compactSkillsCatalog,
+                browserTools = browserToolsAvailable,
             ) + if (pinnedInstructions.isBlank()) "" else "\n\nPinned user instructions:\n$pinnedInstructions"
         var systemPrompt = runSystemPrompt(false)
         var promptSandboxOff = false
         val runRegistry = registry.withExtra(extraTools)
-        val tools = if (!agentContextEnabled) emptyList() else runRegistry.schemas(
-            readOnlyOnly = mode == AgentMode.PLAN,
-            context = ToolContext(workspace = workspace, sessionId = sessionId),
-            descriptionOverrides = replySettings.promptOverrides.toolDescriptions,
-        )
+        // Staged tool exposure: start from the initial group set and grow it as
+        // tools are actually used. `tools` is recomputed every round from
+        // [activeGroups] (below), so a newly activated group is sent on the
+        // next request without changing the relative order of the tools that
+        // were already present (prompt-cache friendly).
+        val activeGroups: MutableSet<ToolGroup> = mutableSetOf<ToolGroup>().apply {
+            addAll(ToolGroups.initialGroups())
+        }
+        var tools: List<com.androidharness.app.llm.ToolSchema> = emptyList()
         val chatHistory = if (agentContextEnabled) history else com.androidharness.app.local.LocalChatCodec.plainChatMessages(history)
         val working = (if (localChat) chatHistory.map { it.withImagesResolved() } else trimHistory(
             ContextHygiene.shrinkToolResults(history.map { it.withImagesResolved() }),
@@ -309,6 +320,15 @@ class AgentEngine(
                 replySettings = nextReplySettings
                 promptSandboxOff = sandboxOff
                 systemPrompt = runSystemPrompt(sandboxOff)
+            }
+            // Recompute the exposed schemas from the tools activated so far.
+            if (agentContextEnabled) {
+                tools = runRegistry.schemas(
+                    readOnlyOnly = mode == AgentMode.PLAN,
+                    context = ToolContext(workspace = workspace, sessionId = sessionId),
+                    descriptionOverrides = replySettings.promptOverrides.toolDescriptions,
+                    groups = activeGroups,
+                )
             }
             // Open path resolution only exists on real-filesystem workspaces;
             // SAF has no shell root and stays inside its picked tree.
@@ -510,6 +530,21 @@ class AgentEngine(
             // Ordinary read-only calls are also allowed to overlap, but only
             // inside contiguous safe-read groups. Writes and interactive/stateful
             // calls form hard ordering boundaries.
+            // Staged exposure recovery: a tool the model asked for that was
+            // withheld from this request's schema list is still executed (the
+            // registry has it), and its group is activated for later requests.
+            // A deferred tool therefore never becomes an unrecoverable "Unknown
+            // tool". Activation is monotonic (the set only grows) and bounded by
+            // the number of groups, so it cannot loop. `tool_search` is an
+            // explicit request for more tools, so it activates every group.
+            for (call in calls) {
+                if (runRegistry.get(call.name) != null) {
+                    activeGroups += ToolGroups.groupFor(call.name)
+                }
+                if (call.name == "tool_search") {
+                    activeGroups += ToolGroups.all
+                }
+            }
             val subagentCalls = calls.filter { it.name == "task" }
             val otherCalls = calls.filterNot { it.name == "task" }
             val results = LinkedHashMap<String, ToolResult>()
@@ -760,6 +795,40 @@ class AgentEngine(
                 registry, mode, sessionAllowedTools, sessionId, turnId,
                 actionTools = agentMode == AgentMode.ACT && cavemanSettings().subagentFullAccess,
             )
+        }
+
+        // tool_search is answered by the engine: it lists tools that were
+        // withheld from this request so the model can reach a capability it
+        // could not see. It is never executed as a tool; the tools it names are
+        // callable immediately (the registry holds them) and their groups are
+        // activated by the run loop for later requests.
+        if (call.name == "tool_search") {
+            val searchArgs = runCatching {
+                json.parseToJsonElement(call.argumentsJson).jsonObject
+            }.getOrNull()
+            val query = searchArgs?.get("query")?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val group = searchArgs?.get("group")?.jsonPrimitive?.contentOrNull?.let { ToolGroups.byId(it) }
+            val matches = if (group != null) {
+                registry.all().filter { ToolGroups.groupFor(it.name) == group }
+            } else {
+                registry.search(query)
+            }
+            if (matches.isEmpty()) {
+                return ToolResult(
+                    false,
+                    "No tools match '$query'. Try a capability or group (git, web, diagnostics, " +
+                        "packages, codegraph, skills_admin, browser) or an empty query.",
+                )
+            }
+            val text = buildString {
+                append("Tools matching '").append(group?.id ?: query).append("':\n")
+                matches.take(40).forEach { tool ->
+                    append("- ").append(tool.name).append(": ")
+                        .append(tool.description.lineSequence().firstOrNull().orEmpty()).append('\n')
+                }
+                append("These tools are callable now; use them directly.")
+            }
+            return ToolResult(true, text)
         }
 
         // Commands that need real toolchains (git/python/node/…) prompt the user
@@ -1621,8 +1690,9 @@ class AgentEngine(
         repoMapEnabled: Boolean = true,
         overrides: com.androidharness.app.prompt.PromptOverrides = com.androidharness.app.prompt.PromptOverrides(),
         compactSkillsCatalog: Boolean = false,
+        browserTools: Boolean = true,
     ): String = com.androidharness.app.prompt.PromptComposer.compose(
-        promptFacts(workspace, mode, fullAccess, repoMapEnabled, compactSkillsCatalog),
+        promptFacts(workspace, mode, fullAccess, repoMapEnabled, compactSkillsCatalog, browserTools),
         overrides,
     ).text
 
@@ -1655,6 +1725,7 @@ class AgentEngine(
         fullAccess: Boolean,
         repoMapEnabled: Boolean,
         compactSkillsCatalog: Boolean,
+        browserTools: Boolean = true,
     ): com.androidharness.app.prompt.PromptFacts {
         val ssh = workspace as? com.androidharness.app.workspace.SshFs
         val kind = when {
@@ -1695,6 +1766,7 @@ class AgentEngine(
             todos = TodoPrompt.format(todoStore?.todos?.value.orEmpty()).takeIf { it.isNotBlank() },
             repositoryMap = repositoryMap,
             compactSkillsCatalog = compactSkillsCatalog,
+            browserTools = browserTools,
         )
     }
 

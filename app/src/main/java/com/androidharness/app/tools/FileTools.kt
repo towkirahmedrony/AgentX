@@ -439,15 +439,15 @@ class WriteFileTool : Tool {
 class EditFileTool : Tool {
     override val name = "edit_file"
     override val description =
-        "Replace a string in a file. Matching tolerates whitespace drift " +
-            "(indentation, trailing spaces, line endings); the match must still be unique. " +
-            "Fails if not found or appears more than once (unless replace_all is true)."
+        "Replace a string in a file. Matching tolerates whitespace drift (indentation, " +
+            "trailing spaces, line endings) but must still be unique. Fails if not found or " +
+            "ambiguous (unless replace_all is true)."
     override val parametersSchema = Schema.obj(
         mapOf(
             "path" to Schema.string("File path relative to the workspace root."),
             "old_string" to Schema.string("The text to replace."),
             "new_string" to Schema.string("The replacement text."),
-            "replace_all" to Schema.boolean("Replace all occurrences. Defaults to false."),
+            "replace_all" to Schema.boolean("Replace all occurrences. Default false."),
         ),
         required = listOf("path", "old_string", "new_string"),
     )
@@ -887,10 +887,11 @@ class ReadImageTool(
 ) : Tool {
     override val name = "read_image"
     override val description =
-        "Inspect and load an image file from the workspace (or a browser screenshot filename/path) so you can see its visual content. The image is rendered and passed directly to your vision context."
+        "Load an image from the workspace (or a browser screenshot filename/path) so you can see " +
+            "its visual content. The image is passed to your vision context."
     override val parametersSchema = Schema.obj(
         mapOf(
-            "path" to Schema.string("Workspace-relative path to an image file (e.g. 'assets/logo.png', '.harness/screenshots/20260903_120000.jpg') OR screenshot filename returned by browser_screenshot."),
+            "path" to Schema.string("Workspace-relative image path (e.g. 'assets/logo.png', '.harness/screenshots/20260903_120000.jpg') or a browser_screenshot filename."),
         ),
         required = listOf("path"),
     )

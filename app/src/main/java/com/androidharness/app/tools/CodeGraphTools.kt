@@ -13,8 +13,8 @@ class CodeGraphExploreTool(private val codeGraph: CodeGraphManager) : Tool {
     override fun isAvailable(ctx: ToolContext): Boolean = codeGraph.isAvailable(ctx.workspace)
     override val name = "codegraph_explore"
     override val description =
-        "Explore an indexed codebase with CodeGraph. Returns relevant symbols' current source plus caller/callee paths. " +
-            "Prefer this before grep or broad file reads when CodeGraph is enabled for the workspace."
+        "Explore the indexed codebase with CodeGraph: relevant symbols' current source plus " +
+            "caller/callee paths. Prefer it over grep or broad file reads when CodeGraph is enabled."
     override val parametersSchema = Schema.obj(
         mapOf("query" to Schema.string("Symbols, files, or a natural-language code question to explore.")),
         required = listOf("query"),
@@ -32,7 +32,7 @@ class CodeGraphNodeTool(private val codeGraph: CodeGraphManager) : Tool {
     override fun isAvailable(ctx: ToolContext): Boolean = codeGraph.isAvailable(ctx.workspace)
     override val name = "codegraph_node"
     override val description =
-        "Read one indexed symbol with its callers/callees, or read an indexed file with line numbers and dependents."
+        "Read one indexed symbol with its callers/callees, or an indexed file with line numbers and dependents."
     override val parametersSchema = Schema.obj(
         mapOf(
             "name" to Schema.string("Symbol name. Optional when file is provided."),
@@ -81,7 +81,7 @@ class CodeGraphImpactTool(private val codeGraph: CodeGraphManager) : Tool {
 class CodeGraphAffectedTool(private val codeGraph: CodeGraphManager) : Tool {
     override fun isAvailable(ctx: ToolContext): Boolean = codeGraph.isAvailable(ctx.workspace)
     override val name = "codegraph_affected"
-    override val description = "Find tests affected by one or more changed source files using the CodeGraph dependency graph."
+    override val description = "Find tests affected by changed source files, using the CodeGraph dependency graph."
     override val parametersSchema = Schema.obj(
         mapOf(
             "files" to Schema.array(Schema.string("Workspace-relative changed source file."), "Changed source files."),

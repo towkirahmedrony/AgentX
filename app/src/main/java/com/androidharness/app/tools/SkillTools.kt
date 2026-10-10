@@ -10,10 +10,9 @@ class SkillViewTool(
 ) : Tool {
     override val name = "skill_view"
     override val description =
-        "Load a skill's full instructions, or one of its supporting files. " +
-            "Call this BEFORE acting whenever a catalog skill matches the task. " +
-            "name is the skill name from the catalog. file_path is optional " +
-            "(e.g. references/catalog.md)."
+        "Load a skill's full instructions, or one of its supporting files. Call it BEFORE " +
+            "acting whenever a catalog skill matches the task. name is the skill name from the " +
+            "catalog; file_path is optional (e.g. references/catalog.md)."
     override val parametersSchema = Schema.obj(
         mapOf(
             "name" to Schema.string("Skill name from the catalog, e.g. systematic-debugging."),
@@ -59,8 +58,8 @@ class SkillsListTool(
 ) : Tool {
     override val name = "skills_list"
     override val description =
-        "List installed skills (name, description, category, source, enabled). " +
-            "Use when the catalog is not enough or you need to find a skill by theme."
+        "List installed skills (name, description, category, source, enabled). Use when the " +
+            "catalog is not enough or to find a skill by theme."
     override val parametersSchema = Schema.obj(
         mapOf("category" to Schema.string("Optional category filter, e.g. design or android.")),
     )
@@ -100,17 +99,17 @@ class SkillManageTool(
 ) : Tool {
     override val name = "skill_manage"
     override val description =
-        "Create, patch, or delete a user skill so a proven workflow can be reused. " +
-            "create needs name + content (full SKILL.md with frontmatter). " +
-            "patch needs name + old_string + new_string (unique match). " +
-            "delete needs name. Bundled skills are copied into your skills on patch, not overwritten in the APK."
+        "Create, patch, or delete a user skill so a proven workflow can be reused. create " +
+            "needs name + content (a full SKILL.md with frontmatter); patch needs name + " +
+            "old_string + new_string (unique match); delete needs name. Bundled skills are copied " +
+            "into your skills on patch."
     override val parametersSchema = Schema.obj(
         mapOf(
             "action" to Schema.string("create | patch | delete"),
-            "name" to Schema.string("Skill name (required for patch and delete; optional for create if frontmatter has it)."),
+            "name" to Schema.string("Skill name (required for patch and delete; optional for create if the frontmatter has it)."),
             "content" to Schema.string("Full SKILL.md for create, including --- frontmatter ---."),
-            "old_string" to Schema.string("Exact text to replace when action is patch."),
-            "new_string" to Schema.string("Replacement text when action is patch."),
+            "old_string" to Schema.string("Exact text to replace (patch)."),
+            "new_string" to Schema.string("Replacement text (patch)."),
         ),
         required = listOf("action"),
     )

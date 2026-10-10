@@ -41,6 +41,13 @@ data class PromptFacts(
     val repositoryMap: String? = null,
     /** Catalog mode for the Skills section; false keeps the verbose default. */
     val compactSkillsCatalog: Boolean = false,
+    /**
+     * Whether browser automation tools are present in this run. Browser-only
+     * guidance is skipped when they are not. Defaults to true so a bare
+     * [PromptFacts] (tests, previews that do not model browser state) keeps the
+     * full guidance; the engine always passes the real value.
+     */
+    val browserTools: Boolean = true,
 ) {
     fun matches(trigger: PromptTrigger): Boolean = when (trigger) {
         PromptTrigger.ALWAYS -> true
@@ -57,6 +64,7 @@ data class PromptFacts(
             workspaceKind != WorkspaceKind.SSH && shizuku == ShizukuFact.NOT_RUNNING
         PromptTrigger.FULL_ACCESS -> fullAccess && workspaceKind != WorkspaceKind.SSH
         PromptTrigger.PLAN_MODE -> planMode
+        PromptTrigger.BROWSER_AVAILABLE -> browserTools
         PromptTrigger.SKILLS_PRESENT -> !skillsIndex.isNullOrBlank()
         PromptTrigger.AGENTS_MD_PRESENT -> agentsMd != null
         PromptTrigger.MEMORY_PRESENT -> memory != null

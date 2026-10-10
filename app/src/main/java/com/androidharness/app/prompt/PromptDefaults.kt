@@ -49,6 +49,8 @@ object PromptDefaults {
             "(e.g. .harness/screenshots/20260903_120000.jpg). To look up past screenshots, list the " +
             "directory with list_dir path=\".harness/screenshots\". Use read_image with the screenshot " +
             "path or filename to inspect visual content.",
+        // Only relevant when the browser tools are in this run.
+        trigger = PromptTrigger.BROWSER_AVAILABLE,
     )
 
     private val FILE_MENTIONS = PromptSection(
@@ -334,6 +336,7 @@ object PromptDefaults {
         defaultText = "- Browser automation: when previewing or interacting with web projects via browser " +
             "tools, start a local dev/http server using shell_background (e.g. python3 -m http.server " +
             "8000, npm run dev, or similar) and navigate to http://localhost:<port>.\n",
+        trigger = PromptTrigger.BROWSER_AVAILABLE,
     )
 
     private val MOBILE_UI = PromptSection(

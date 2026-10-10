@@ -32,11 +32,11 @@ class DoctorTool(
 ) : Tool {
     override val name = "doctor"
     override val description =
-        "Run GitHub self-diagnostics: verify the configured token against the API (login, account " +
-            "type, plan, granted scopes), check the materialized token file's real permissions, verify " +
-            "git's helper shell (GIT_SHELL_PATH) and token URL rewrite, and probe whether branch " +
-            "protection is available or paywalled for the account's private repos (Free-plan trap). " +
-            "Use this instead of hand-rolling API calls when GitHub operations misbehave."
+        "Run GitHub self-diagnostics: verify the token against the API (login, account type, plan, " +
+            "scopes), check the materialized token file's real permissions, verify git's helper shell " +
+            "(GIT_SHELL_PATH) and token URL rewrite, and probe whether branch protection is available " +
+            "or paywalled for the account's private repos (Free-plan trap). Use this rather than " +
+            "hand-rolled API calls when GitHub operations misbehave."
     override val parametersSchema = Schema.obj(
         mapOf(
             "github" to Schema.boolean(

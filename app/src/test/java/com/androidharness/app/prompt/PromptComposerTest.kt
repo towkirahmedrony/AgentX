@@ -70,6 +70,22 @@ class PromptComposerTest {
     }
 
     @Test
+    fun `browser-only guidance follows browser tool availability`() {
+        // Default facts keep the full guidance (the historical default prompt).
+        val withBrowser = PromptComposer.compose(localLinux()).text
+        assertTrue(withBrowser.contains("Browser screenshots save under"))
+        assertTrue(withBrowser.contains("Browser automation:"))
+
+        // With no browser tools in the run those two sections are omitted, but
+        // every other instruction stays.
+        val noBrowser = PromptComposer.compose(localLinux().copy(browserTools = false)).text
+        assertFalse(noBrowser.contains("Browser screenshots save under"))
+        assertFalse(noBrowser.contains("Browser automation:"))
+        assertTrue(noBrowser.contains("Use list_dir/search_files/grep/read_file"))
+        assertTrue(noBrowser.contains("Paths outside the workspace are blocked."))
+    }
+
+    @Test
     fun `workspace shapes swap the environment section`() {
         val ssh = PromptComposer.compose(
             localLinux().copy(workspaceKind = WorkspaceKind.SSH, workspaceRoot = "ubuntu@host:/srv"),

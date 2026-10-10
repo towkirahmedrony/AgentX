@@ -15,11 +15,10 @@ class ShellBackgroundTool(
 ) : Tool {
     override val name = "shell_background"
     override val description =
-        "Start a long-running shell command in the background (e.g. a dev server). " +
-        "When Shizuku is connected the process runs inside its server and survives the app " +
-        "being minimized or even killed; otherwise it runs as an app child kept alive by the " +
-        "foreground service. Returns a process id; its output goes to a log file. " +
-        "Use bg_list to inspect and bg_kill to stop it."
+        "Start a long-running shell command in the background (e.g. a dev server). With Shizuku " +
+        "connected it survives the app being minimized or killed; otherwise it runs as an app " +
+        "child kept alive by the foreground service. Returns a process id and log path; bg_list " +
+        "inspects it, bg_kill stops it."
     override val parametersSchema = Schema.obj(
         mapOf("command" to Schema.string("The shell command to run in the background.")),
         required = listOf("command"),

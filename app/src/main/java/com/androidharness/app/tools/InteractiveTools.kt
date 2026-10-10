@@ -10,18 +10,16 @@ import kotlinx.serialization.json.jsonPrimitive
 class AskUserTool : Tool {
     override val name = "ask_user"
     override val description =
-        "Ask the user a clarifying question and wait for their answer. Use this whenever " +
-        "a decision is genuinely the user's to make instead of guessing. You may call ask_user " +
-        "several times in the same turn to gather everything you need before acting. " +
-        "Provide 2-4 short options when possible; the user can also type a free-form answer. " +
-        "Set multi_select=true when several answers can be true at once (the user gets " +
-        "checkboxes instead of single-choice chips); offer up to 8 options then."
+        "Ask the user a clarifying question and wait. Use whenever a decision is genuinely the " +
+        "user's to make instead of guessing. You may call it several times in one turn. Provide " +
+        "2-4 short options when possible; the user can also type a free-form answer. " +
+        "multi_select=true gives checkboxes (up to 8 options)."
     override val parametersSchema = Schema.obj(
         mapOf(
             "question" to Schema.string("The question to show the user."),
             "options" to Schema.array(
                 Schema.string("One possible answer."),
-                "Optional suggested answers (2-4, or up to 8 with multi_select).",
+                "Optional suggested answers (2-4; up to 8 with multi_select).",
             ),
             "multi_select" to Schema.boolean(
                 "Allow the user to pick several options at once (checkboxes). Default false.",
@@ -39,19 +37,17 @@ class AskUserTool : Tool {
 class MemoryWriteTool : Tool {
     override val name = "memory_write"
     override val description =
-        "Write to the agent memory. Without topic: the core memory file (.harness/memory.md), " +
-            "which is automatically loaded at the start of every conversation, so keep it to small, " +
-            "always-relevant facts (preferences, conventions, decisions). With topic: a topic file " +
-            "under .harness/memory/<topic>.md for longer, task-specific notes; topic files are " +
-            "listed by name in the system prompt and retrieved with memory_read/memory_search."
+        "Write to agent memory. Without topic: the core file (.harness/memory.md), loaded at the " +
+            "start of every conversation, so keep it to small, always-relevant facts. With topic: " +
+            ".harness/memory/<topic>.md for longer, task-specific notes; topics are listed in the " +
+            "system prompt and read with memory_read/memory_search."
     override val parametersSchema = Schema.obj(
         mapOf(
             "content" to Schema.string("Text to write."),
             "mode" to Schema.string("'append' (default) adds to the file; 'replace' overwrites it."),
             "topic" to Schema.string(
-                "Optional topic name (already lowercase a-z, 0-9, '-' or '_'; anything else is " +
-                    "refused, not renamed). Writes to .harness/memory/<topic>.md instead of the " +
-                    "core memory file.",
+                "Optional topic name (lowercase a-z, 0-9, '-' or '_'; anything else is refused, " +
+                    "not renamed). Writes .harness/memory/<topic>.md instead of core memory.",
             ),
         ),
         required = listOf("content"),

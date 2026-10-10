@@ -21,17 +21,17 @@ class PkgInstallTool(
 
     override val name = "pkg_install"
     override val description =
-        "Install one or more packages from the Linux toolchain repository (e.g. 'ripgrep', 'jq', 'clang', 'rust', 'tmux', 'curl', 'tree', 'openjdk-17'). " +
-        "Dependencies are resolved and installed automatically. " +
-        "NOTE: Requires explicit user approval before downloading packages."
+        "Install packages from the Linux toolchain repository (e.g. 'ripgrep', 'jq', " +
+        "'clang', 'rust', 'tmux', 'curl', 'tree', 'openjdk-17'). Dependencies are resolved " +
+        "automatically. Requires explicit user approval before downloading packages."
 
     override val parametersSchema = Schema.obj(
         mapOf(
             "packages" to Schema.array(
-                Schema.string("Package name to install"),
-                "List of package names to install, e.g. [\"ripgrep\", \"jq\"]."
+                Schema.string("Package name"),
+                "Package names to install, e.g. [\"ripgrep\", \"jq\"]."
             ),
-            "reason" to Schema.string("Short explanation of why these packages are needed for the current task."),
+            "reason" to Schema.string("Why these packages are needed for the current task."),
         ),
         required = listOf("packages"),
     )

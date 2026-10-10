@@ -61,17 +61,16 @@ class BrowserNavigateTool(
 ) : Tool {
     override val name = "browser_navigate"
     override val description =
-        "Navigate the in-app browser/WebView to a target URL, a localhost dev server (e.g. http://localhost:3000), " +
-        "or a workspace-relative local file (e.g. 'index.html', 'docs/about.html'). Local files are served under " +
-        "https://harness.workspace/ws/... via request interception, so relative links, form submits, assets, and " +
-        "back/forward history behave like a real site. Returns page title, URL, scroll position, text excerpt, " +
-        "and an indexed catalog of interactive elements ([id]) for clicking and typing. The call fails, rather " +
-        "than reporting the previous page, when the target produces no page at all (a download or attachment " +
-        "response, or a scheme the WebView refuses to render), and says so when a slow page has not finished " +
-        "loading yet."
+        "Navigate the in-app browser/WebView to a URL, a localhost dev server (e.g. " +
+        "http://localhost:3000), or a workspace-relative file (e.g. 'index.html'). Local files are " +
+        "served under https://harness.workspace/ws/... via request interception, so relative links, " +
+        "form submits, assets and back/forward history behave like a real site. Returns page title, " +
+        "URL, scroll position, a text excerpt and an indexed catalog of interactive elements ([id]) " +
+        "for clicking and typing. Fails (rather than reporting the previous page) when the target " +
+        "produces no page, and says so when a slow page has not finished loading."
     override val parametersSchema = Schema.obj(
         mapOf(
-            "url" to Schema.string("The target URL (e.g. 'https://example.com', 'http://localhost:5173', or 'index.html')."),
+            "url" to Schema.string("Target URL (e.g. 'https://example.com', 'http://localhost:5173', or 'index.html')."),
         ),
         required = listOf("url"),
     )
@@ -98,15 +97,15 @@ class BrowserClickTool(
 ) : Tool {
     override val name = "browser_click"
     override val description =
-        "Click an interactive element on the current browser page by its numeric id (from browser_navigate or " +
-            "browser_get_dom) or a CSS selector. Supply only one: when both are given the selector is used and " +
-            "the result says so, because an id is only valid for the page state it was indexed from. " +
-            "Automatically scrolls the element into view and returns the updated page state. Clicking a disabled " +
-            "element still dispatches the click (as a real user click would) but the result warns that nothing happened."
+        "Click an interactive element on the current page by its numeric id (from browser_navigate or " +
+            "browser_get_dom) or a CSS selector. Supply only one: with both, the selector wins and the " +
+            "result says so (an id is only valid for the page state it was indexed from). Scrolls the " +
+            "element into view and returns the updated page state. Clicking a disabled element still " +
+            "dispatches the click but the result warns nothing happened."
     override val parametersSchema = Schema.obj(
         mapOf(
-            "id" to Schema.integer("The numeric element id from previous DOM indexing (e.g. 3). Ignored when 'selector' is supplied."),
-            "selector" to Schema.string("Optional CSS selector (e.g. '#submit-btn', 'button.primary'). Takes precedence over 'id'."),
+            "id" to Schema.integer("Numeric element id from DOM indexing. Ignored when 'selector' is supplied."),
+            "selector" to Schema.string("Optional CSS selector (e.g. '#submit-btn'). Takes precedence over 'id'."),
         ),
     )
     override val isReadOnly = false
@@ -136,15 +135,15 @@ class BrowserTypeTool(
 ) : Tool {
     override val name = "browser_type"
     override val description =
-        "Type text into an input, textarea, or contenteditable element by its numeric id or CSS selector. " +
-            "Supply only one: when both are given the selector is used and the result says so. " +
-            "Dispatches standard input and change events so JavaScript reactive forms update properly. Typing into " +
-            "a disabled field still dispatches the events but the result warns that nothing happened."
+        "Type text into an input, textarea, or contenteditable element by its numeric id or CSS " +
+            "selector. Supply only one: with both, the selector wins and the result says so. Dispatches " +
+            "standard input/change events so reactive forms update. Typing into a disabled field still " +
+            "dispatches the events but the result warns nothing happened."
     override val parametersSchema = Schema.obj(
         mapOf(
             "text" to Schema.string("The text to type into the element."),
-            "id" to Schema.integer("The numeric element id from previous DOM indexing. Ignored when 'selector' is supplied."),
-            "selector" to Schema.string("Optional CSS selector targeting the input element. Takes precedence over 'id'."),
+            "id" to Schema.integer("Numeric element id from DOM indexing. Ignored when 'selector' is supplied."),
+            "selector" to Schema.string("Optional CSS selector targeting the input. Takes precedence over 'id'."),
             "clear_first" to Schema.boolean("Whether to clear existing text before typing (default false)."),
         ),
         required = listOf("text"),
@@ -232,8 +231,8 @@ class BrowserEvalTool(
 ) : Tool {
     override val name = "browser_eval"
     override val description =
-        "Evaluate JavaScript in the page context inside a sandboxed async function: `await` is allowed, the " +
-        "completion value (or an explicit `return`) is the result, and thrown errors are reported as tool " +
+        "Evaluate JavaScript in the page context inside a sandboxed async function: `await` is allowed, " +
+        "the completion value (or an explicit `return`) is the result, and thrown errors become tool " +
         "failures. Each call is isolated; persist state via localStorage/sessionStorage, not globals."
     override val parametersSchema = Schema.obj(
         mapOf(
@@ -268,8 +267,8 @@ class BrowserScreenshotTool(
 ) : Tool {
     override val name = "browser_screenshot"
     override val description =
-        "Capture a screenshot image of the current page/WebView viewport. The image is shown inline in the " +
-        "chat transcript so the user sees it, and the tool result reports the saved file details."
+        "Capture a screenshot of the current page viewport. The image is shown inline in the chat " +
+        "transcript and the result reports the saved file details."
     override val parametersSchema = Schema.obj(emptyMap())
     override val isReadOnly = true
 
@@ -300,8 +299,8 @@ class BrowserGetLogsTool(
 ) : Tool {
     override val name = "browser_get_logs"
     override val description =
-        "Retrieve recent browser console logs, warnings, and JavaScript runtime errors, each tagged with the page " +
-        "URL that produced it. Set clear=true to empty the buffer after reading (equivalent to browser_clear_logs)."
+        "Retrieve recent browser console logs, warnings, and JS runtime errors, each tagged with the " +
+        "page URL that produced it. clear=true empties the buffer after reading."
     override val parametersSchema = Schema.obj(
         mapOf(
             "level" to Schema.string("Filter by level: 'ERROR', 'WARN', 'LOG', 'DEBUG', or leave empty for all."),
@@ -385,8 +384,8 @@ class BrowserBackTool(
 ) : Tool {
     override val name = "browser_back"
     override val description =
-        "Go back one page in browser history. Preserves console logs and, for workspace pages, restores app " +
-        "state better than re-navigating."
+        "Go back one page. Preserves console logs and, for workspace pages, restores app state better " +
+        "than re-navigating."
     override val parametersSchema = Schema.obj(emptyMap())
     override val isReadOnly = false
 
@@ -423,8 +422,8 @@ class BrowserRefreshTool(
 ) : Tool {
     override val name = "browser_refresh"
     override val description =
-        "Reload the current page in place. Unlike re-navigating, in-page state that the browser owns " +
-        "(history entry, scroll anchor) behaves like a normal reload, and console logs are preserved."
+        "Reload the current page in place. In-page state the browser owns (history entry, scroll " +
+        "anchor) behaves like a normal reload, and console logs are preserved."
     override val parametersSchema = Schema.obj(emptyMap())
     override val isReadOnly = false
 
@@ -446,8 +445,8 @@ class BrowserGetUrlTool(
 ) : Tool {
     override val name = "browser_get_url"
     override val description =
-        "Return just the current page URL and title, without re-reading the DOM. Cheap way to confirm where " +
-        "the browser ended up after a click or navigation."
+        "Return just the current page URL and title, without re-reading the DOM. Cheap way to confirm " +
+        "where the browser ended up after a click or navigation."
     override val parametersSchema = Schema.obj(emptyMap())
     override val isReadOnly = true
 

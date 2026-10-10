@@ -32,9 +32,9 @@ class WebSearchTool(
     override val name = "web_search"
     override val description =
         "Search the web and return top results (title, url, snippet). Uses the configured " +
-        "search API automatically when one is set in Settings; otherwise keyless engines " +
-        "run with automatic fallback. Choose an engine with the 'engine' parameter " +
-        "(duckduckgo, bing, brave, google; keyless mode only) or use 'auto'."
+        "search API when one is set in Settings, otherwise keyless engines run with automatic " +
+        "fallback. The 'engine' parameter picks one (duckduckgo, bing, brave, google; keyless " +
+        "mode only), or use 'auto'."
     override val parametersSchema = Schema.obj(
         mapOf(
             "query" to Schema.string("The search query."),
@@ -162,11 +162,10 @@ class HttpRequestTool(
     override val name = "http_request"
     override val description =
         "Send an HTTP request (GET/POST/PUT/PATCH/DELETE) with optional headers and body. " +
-        "Public addresses only; localhost/private destinations are blocked and redirects are not followed. " +
-        "Returns status, headers and the truncated response body. Requests to api.github.com " +
-        "and uploads.github.com are authenticated with the configured GitHub token automatically " +
-        "(set github_auth=false to go anonymous); github_auth=true extends auth to other " +
-        "github.com/githubusercontent.com hosts."
+        "Public addresses only; localhost/private targets are blocked and redirects are not " +
+        "followed. Returns status, headers and a truncated body. api.github.com and " +
+        "uploads.github.com requests carry the stored GitHub token automatically " +
+        "(github_auth=false for anonymous; true widens to other github.com/githubusercontent.com hosts)."
     override val parametersSchema = Schema.obj(
         mapOf(
             "method" to Schema.string("HTTP method. Defaults to GET."),
@@ -179,9 +178,8 @@ class HttpRequestTool(
             "body" to Schema.string("Request body (for POST/PUT/PATCH)."),
             "content_type" to Schema.string("Body content type. Defaults to application/json."),
             "github_auth" to Schema.boolean(
-                "GitHub token handling. Omitted: attach automatically for api.github.com and " +
-                    "uploads.github.com. true: also attach for other github.com / " +
-                    "githubusercontent.com hosts. false: never attach (anonymous request).",
+                "Omitted: auto-attach for api.github.com and uploads.github.com. true: also " +
+                    "attach for other github.com/githubusercontent.com hosts. false: never attach.",
             ),
         ),
         required = listOf("url"),

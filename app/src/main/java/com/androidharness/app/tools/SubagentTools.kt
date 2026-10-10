@@ -10,29 +10,24 @@ import kotlinx.serialization.json.JsonObject
 class TaskTool : Tool {
     override val name = "task"
     override val description =
-        "Run a subagent with its own context. By default it explores read-only; " +
-        "when Subagent action tools is enabled in Settings, it can also edit files and run tools " +
-        "in Act mode under the current permission mode. " +
-        "Use it for delegated work whose raw output would bloat this conversation: " +
-        "you get back only the subagent's final, self-contained answer. " +
-        "Need several independent explorations? Issue ALL task calls in ONE message: " +
-        "they run concurrently. Never serialize independent research into separate turns. " +
-        "A model chosen in Sub-Agent settings is used for every subagent. Otherwise, " +
-        "pass `model` to run the task on a cheaper or faster catalog model than this conversation uses. " +
-        "The subagent cannot ask you questions or spawn further subagents."
+        "Run a subagent with its own context; only its final answer returns. Use for delegated " +
+        "work whose raw output would bloat this conversation. Read-only unless Subagent action " +
+        "tools is enabled (then it edits and runs tools in Act mode under the permission mode). " +
+        "Issue ALL independent task calls in ONE message: they run concurrently. Pass `model` " +
+        "(a catalog id) for a cheaper/faster model; a Sub-Agent settings model overrides it. " +
+        "Subagents cannot ask questions or spawn subagents."
     override val parametersSchema = Schema.obj(
         mapOf(
             "prompt" to Schema.string(
-                "The research question and everything the subagent needs to know; " +
-                    "it does NOT share this conversation's context.",
+                "The task and everything the subagent needs; it does not see this conversation.",
             ),
             "title" to Schema.string(
-                "Short label shown on the subagent's progress, e.g. 'Find config sources'.",
+                "Short label on the subagent's progress, e.g. 'Find config sources'.",
             ),
             "model" to Schema.string(
-                "Optional model id from this provider's catalog to run the subagent on " +
-                    "(defaults to this conversation's model). A model chosen in Sub-Agent settings takes precedence. Unknown ids are rejected " +
-                    "with the list of valid ids.",
+                "Optional catalog model id for the subagent (default: this conversation's " +
+                    "model). A model set in Sub-Agent settings takes precedence; unknown ids are " +
+                    "rejected with the valid list.",
             ),
         ),
         required = listOf("prompt"),

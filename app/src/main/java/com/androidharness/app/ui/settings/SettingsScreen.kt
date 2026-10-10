@@ -252,6 +252,7 @@ fun SettingsScreen(
                             ChatBehaviorSection(container, settings, scope)
                             SlashCommandsSection(container)
                         }
+                        SettingsPage.PROMPTS -> PromptsSection(container, settings, scope)
                         SettingsPage.CODE_INTELLIGENCE -> CodeIntelligenceSection(container, workspace, currentProject)
                         SettingsPage.CAVEMAN -> CavemanSection(container, settings)
                         SettingsPage.VOICE -> VoiceSpeechSection(container, settings, scope)

@@ -52,6 +52,25 @@ class SettingsNavigationTest {
     }
 
     @Test
+    fun `prompt editor is a visible settings page reachable by search`() {
+        // Regression: the prompt editor shipped as an unreferenced composable
+        // because it was never registered as a SettingsPage. The home list is
+        // built from SettingsPage.entries, so with no PROMPTS entry the user had
+        // no menu item and no navigation path capable of opening it.
+        val prompts = matchingSettingsEntries("").firstOrNull { it.page == SettingsPage.PROMPTS }
+        assertNotNull(prompts)
+        assertTrue(prompts!!.primary)
+
+        // Reachable by the labels the feature is documented under.
+        assertTrue(SettingsPage.PROMPTS in matchingSettingsPages("prompt"))
+        assertTrue(SettingsPage.PROMPTS in matchingSettingsPages("system prompt"))
+        assertEquals(
+            SettingsPage.PROMPTS,
+            matchingSettingsEntries("system prompt").first { it.title == "System prompt" }.page,
+        )
+    }
+
+    @Test
     fun `existing chat shortcuts land on their focused settings pages`() {
         assertEquals(SettingsPage.MODELS, settingsDeepLink("planning"))
         assertEquals(SettingsPage.VOICE, settingsDeepLink("voice"))

@@ -151,6 +151,7 @@ private fun settingsIcon(page: SettingsPage): ImageVector = when (page) {
     SettingsPage.LOCAL_MODELS -> Icons.Outlined.Memory
     SettingsPage.AGENT -> Icons.Outlined.Tune
     SettingsPage.CHAT -> Icons.Outlined.ChatBubbleOutline
+    SettingsPage.PROMPTS -> Icons.Outlined.Edit
     SettingsPage.CODE_INTELLIGENCE -> Icons.Outlined.AccountTree
     SettingsPage.CAVEMAN -> Icons.Outlined.ShortText
     SettingsPage.VOICE -> Icons.Outlined.Mic

@@ -1371,7 +1371,7 @@ class AgentEngine(
                     } catch (ce: CancellationException) {
                         throw ce
                     } catch (timeout: ToolTimedOut) {
-                        ToolResult(false, timeout.message).redacted()
+                        ToolResult(false, timeout.explanation).redacted()
                     } catch (e: Exception) {
                         ToolResult(false, e.message ?: "${call.name} failed again after repair").redacted()
                     }
@@ -1746,7 +1746,7 @@ class AgentEngine(
                         } catch (ce: CancellationException) {
                             throw ce
                         } catch (timeout: ToolTimedOut) {
-                            ToolResult(false, timeout.message).redacted()
+                            ToolResult(false, timeout.explanation).redacted()
                         } catch (e: Exception) {
                             ToolResult(false, e.message ?: "${call.name} failed").redacted()
                         }

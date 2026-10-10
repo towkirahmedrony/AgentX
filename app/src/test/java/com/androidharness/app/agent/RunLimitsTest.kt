@@ -500,7 +500,7 @@ class RunLimitsTest {
     @Test
     fun `a subagent is bounded by its time slice`() {
         var clock = 0L
-        val budget = SubagentBudget(maxIterations = 1_000, deadlineMs = 5_000, clock = { clock })
+        val budget = SubagentBudget(maxIterations = 1_000, deadlineMs = 5_000L, clock = { clock })
         assertTrue(budget.nextRound())
         clock = 5_001
         assertFalse("the time slice must stop it even with rounds left", budget.nextRound())

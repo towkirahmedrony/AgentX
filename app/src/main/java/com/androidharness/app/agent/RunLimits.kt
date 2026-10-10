@@ -426,7 +426,16 @@ const val TOOL_HARD_TIMEOUT_MS: Long = 30 * 60 * 1000L
 
 /** Raised when [withToolTimeout] gives up on a tool. Distinct from cancellation. */
 class ToolTimedOut(val toolName: String, val timeoutMs: Long) :
-    RuntimeException("$toolName did not finish within ${RunStop.formatDuration(timeoutMs)}")
+    RuntimeException("$toolName did not finish within ${RunStop.formatDuration(timeoutMs)}") {
+
+    /**
+     * Non-null explanation for call sites that must produce a concrete string
+     * (a failed tool result). [RuntimeException.message] is nullable by type even
+     * though this class always sets it.
+     */
+    val explanation: String
+        get() = message ?: "$toolName did not finish within ${RunStop.formatDuration(timeoutMs)}"
+}
 
 /**
  * Runs [block] under [TOOL_HARD_TIMEOUT_MS], translating only the timeout into a

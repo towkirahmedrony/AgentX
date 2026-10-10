@@ -502,7 +502,7 @@ class ChatViewModel(
                         _state.value.mode,
                         _state.value.permissionMode == PermissionMode.FULL_ACCESS,
                         budget = budgetForActiveProvider(),
-                        providerInputTokens = sess.lastInputTokens,
+                        providerInputTokens = sess.lastInputTokens.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
                     )
                     _state.update { it.copy(estimate = fresh) }
                 }

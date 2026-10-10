@@ -294,7 +294,7 @@ fun AppNav(container: AppContainer) {
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "AndroidHarness",
+                                "AgentX",
                                 style = MaterialTheme.typography.titleMediumEmphasized,
                             )
                             Text(

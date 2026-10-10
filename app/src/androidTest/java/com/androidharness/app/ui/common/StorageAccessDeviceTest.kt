@@ -57,7 +57,7 @@ class StorageAccessDeviceTest {
     @Test
     fun deniedStorageStillAllowsSetupAndAppWorkspace() = runBlocking {
         ActivityScenario.launch(MainActivity::class.java).use {
-            awaitText("Welcome to AndroidHarness")
+            awaitText("Welcome to AgentX")
             assertTrue(clickable(awaitText("Start harness")).isEnabled)
             clickText("Grant")
             clickId("com.android.packageinstaller:id/permission_deny_button")
@@ -66,7 +66,7 @@ class StorageAccessDeviceTest {
             screenshot("storage-denied-setup")
             clickText("Start harness")
             awaitCondition("Setup did not finish") { runBlocking { container.settings.settings.first().onboardingDone } }
-            awaitCondition("Setup remained visible") { findText("Welcome to AndroidHarness") == null }
+            awaitCondition("Setup remained visible") { findText("Welcome to AgentX") == null }
 
             val workspace = container.workspace.currentOnce()
             val root = requireNotNull(workspace.shellRoot)
@@ -93,7 +93,7 @@ class StorageAccessDeviceTest {
     @Test
     fun normalPermissionGrantUnlocksDeviceFolders() = runBlocking {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitText("Welcome to AndroidHarness")
+            awaitText("Welcome to AgentX")
             clickText("Grant")
             clickId("com.android.packageinstaller:id/permission_allow_button")
             awaitCondition("Storage permission was not granted") { StorageAccess.isGranted(context) }
@@ -135,7 +135,7 @@ class StorageAccessDeviceTest {
     @Test
     fun permanentDenialOpensAppSettingsAndSetupRemainsAvailable() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            awaitText("Welcome to AndroidHarness")
+            awaitText("Welcome to AgentX")
             clickText("Grant")
             clickId("com.android.packageinstaller:id/permission_deny_button")
             awaitText("Ready with the app workspace")
@@ -150,7 +150,7 @@ class StorageAccessDeviceTest {
             }
             screenshot("storage-permanent-denial-settings")
             shell("input keyevent 4")
-            awaitText("Welcome to AndroidHarness")
+            awaitText("Welcome to AgentX")
             assertTrue(clickable(awaitText("Start harness")).isEnabled)
             clickText("Start harness")
             awaitCondition("Permanent denial blocked setup") { runBlocking { container.settings.settings.first().onboardingDone } }
@@ -161,7 +161,7 @@ class StorageAccessDeviceTest {
     @Test
     fun settingsCanGrantLegacyStorageAfterSkippingSetup() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitText("Welcome to AndroidHarness")
+            awaitText("Welcome to AgentX")
             clickText("Start harness")
             awaitCondition("Setup did not finish") { runBlocking { container.settings.settings.first().onboardingDone } }
             scenario.onActivity { activity -> activity.setContent { MaterialTheme {
@@ -186,7 +186,7 @@ class StorageAccessDeviceTest {
         shell("touch $fixture/seed.txt")
         try {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-                awaitText("Welcome to AndroidHarness")
+                awaitText("Welcome to AgentX")
                 clickText("Start harness")
                 awaitCondition("Setup did not finish") { runBlocking { container.settings.settings.first().onboardingDone } }
                 // A folder added earlier through the device browser must keep its

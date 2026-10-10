@@ -99,7 +99,7 @@ class AutomationAiPlanner(private val c: AppContainer) {
     }
 
     private fun systemPrompt(projectName: String, now: ZonedDateTime): String = """
-        You configure AndroidHarness automations. The active workspace is "$projectName".
+        You configure AgentX automations. The active workspace is "$projectName".
         Current local date/time is $now. Time zone is ${now.zone.id}.
 
         Decide whether the user has supplied enough information to create a useful automation.

@@ -1,10 +1,10 @@
-# AndroidHarness
-
-<a href="https://play.google.com/store/apps/details?id=com.androidharness.app"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="72"></a>
+# AgentX
 
 A coding agent that lives on your phone.
 
-AndroidHarness is a native Android app, written in Kotlin with Jetpack Compose, that works on code projects directly from the device. It reads and edits files, runs shell commands, uses git, and chats with you about the work as it goes. No PC required.
+AgentX is a personally modified version of [AndroidHarness](https://github.com/Sanuu7/AndroidHarness) by Sanuu7, licensed under the MIT License.
+
+AgentX is a native Android app, written in Kotlin with Jetpack Compose, that works on code projects directly from the device. It reads and edits files, runs shell commands, uses git, and chats with you about the work as it goes. No PC required.
 
 Status: 1.6
 
@@ -153,7 +153,7 @@ A generated architecture reference covering the agent engine, tools, providers, 
 
 ## Inspirations
 
-AndroidHarness borrows ideas and design taste from open source projects across the ecosystem:
+AgentX borrows ideas and design taste from open source projects across the ecosystem:
 
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent)
 - [Aider](https://github.com/Aider-AI/aider)

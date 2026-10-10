@@ -259,7 +259,7 @@ class ChatGptAccounts(
                         }
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { /* Local logout must still complete. */ }
                 }
-                publish(if (revoked) null else "Signed out locally. Remote disconnection could not be confirmed. Disconnect AndroidHarness in ChatGPT settings.")
+                publish(if (revoked) null else "Signed out locally. Remote disconnection could not be confirmed. Disconnect AgentX in ChatGPT settings.")
             }
         }
     }

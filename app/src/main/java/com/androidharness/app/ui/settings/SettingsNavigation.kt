@@ -85,8 +85,8 @@ private val subSettingsEntries = listOf(
     SettingsSearchEntry("Import chats", "Chat backups · Restore conversations from a backup file", SettingsPage.BACKUP, "backup import restore history"),
     SettingsSearchEntry("Check for updates", "Updates · Check GitHub Releases for a newer build", SettingsPage.UPDATES, "version update release download"),
     SettingsSearchEntry("License", "About · The MIT license and what it means for forks", SettingsPage.ABOUT, "mit copyright permissive open source"),
-    SettingsSearchEntry("Credits", "About · Open source projects behind AndroidHarness", SettingsPage.ABOUT, "thanks acknowledgements inspirations projects"),
-    SettingsSearchEntry("Author", "About · Who builds AndroidHarness and where to find it", SettingsPage.ABOUT, "sanuu github repository maintainer source code"),
+    SettingsSearchEntry("Credits", "About · Open source projects behind AgentX", SettingsPage.ABOUT, "thanks acknowledgements inspirations projects"),
+    SettingsSearchEntry("Author", "About · Who builds AgentX and where to find it", SettingsPage.ABOUT, "sanuu github repository maintainer source code"),
 )
 
 internal fun matchingSettingsEntries(query: String): List<SettingsSearchEntry> {

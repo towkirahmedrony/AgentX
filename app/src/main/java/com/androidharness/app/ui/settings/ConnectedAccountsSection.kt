@@ -78,7 +78,7 @@ internal fun ConnectedAccountsSection(container: AppContainer) {
     if (state.showWelcome) AlertDialog(
         onDismissRequest = { scope.launch { container.chatGpt.dismissWelcome() } },
         title = { Text("You're using your ChatGPT plan") },
-        text = { Text("Eligible requests in AndroidHarness use your ChatGPT plan or credits. You can review usage and manage this app's access in ChatGPT settings.") },
+        text = { Text("Eligible requests in AgentX use your ChatGPT plan or credits. You can review usage and manage this app's access in ChatGPT settings.") },
         confirmButton = { TextButton(onClick = { scope.launch { container.chatGpt.dismissWelcome() } }) { Text("Got it") } },
     )
     pendingSignOut?.let { id -> AlertDialog(

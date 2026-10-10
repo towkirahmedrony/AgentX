@@ -1615,7 +1615,7 @@ private fun ShizukuCard(
                         when (state) {
                             ShizukuState.NOT_INSTALLED -> "Not installed: optional."
                             ShizukuState.NOT_RUNNING -> "Installed, not running."
-                            ShizukuState.RUNNING_NO_PERMISSION -> "Running: grant AndroidHarness access."
+                            ShizukuState.RUNNING_NO_PERMISSION -> "Running: grant AgentX access."
                             ShizukuState.GRANTED -> "Connected: system paths unlocked."
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -2609,7 +2609,7 @@ private fun appVersionLabel(context: Context): String = runCatching {
     context.packageManager.getPackageInfo(context.packageName, 0).versionName
 }.getOrNull().orEmpty().ifBlank { "?" }
 
-/** A project AndroidHarness leans on, listed on the About page. */
+/** A project AgentX leans on, listed on the About page. */
 private data class Credit(val name: String, val role: String, val url: String)
 
 private val BUILT_WITH = listOf(
@@ -2649,10 +2649,16 @@ private fun AboutSection(container: AppContainer) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             HarnessMark(size = 58.dp)
-            Text("AndroidHarness", style = MaterialTheme.typography.titleLarge)
+            Text("AgentX", style = MaterialTheme.typography.titleLarge)
             Text(
                 "A coding agent that lives on your phone.",
                 style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                "A personally modified version of AndroidHarness by Sanuu7, licensed under the MIT License.",
+                style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
@@ -2725,7 +2731,7 @@ private fun AboutSection(container: AppContainer) {
     SettingsPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Text(
-                "AndroidHarness is built on open source work and borrows ideas from the agents that came before it.",
+                "AgentX is built on open source work and borrows ideas from the agents that came before it.",
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,
             )
@@ -2735,7 +2741,7 @@ private fun AboutSection(container: AppContainer) {
         HorizontalDivider(color = scheme.outlineVariant.copy(alpha = 0.4f))
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Text(
-                "Every project keeps its own license. AndroidHarness is not affiliated with them.",
+                "Every project keeps its own license. AgentX is not affiliated with them.",
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,
             )

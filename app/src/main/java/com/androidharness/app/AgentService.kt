@@ -248,7 +248,7 @@ class AgentService : Service() {
 
     private fun buildNotification(text: String): Notification =
         Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("AndroidHarness")
+            .setContentTitle("AgentX")
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(appPendingIntent())

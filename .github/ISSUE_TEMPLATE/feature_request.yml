@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest something you'd like AndroidHarness to do.
+description: Suggest something you'd like AgentX to do.
 title: "[Feature] "
 body:
   - type: markdown

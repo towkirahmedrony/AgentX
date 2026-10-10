@@ -1627,7 +1627,7 @@ class AgentEngine(
         val sb = StringBuilder()
         sb.append(
             """
-You are AndroidHarness, an autonomous coding agent running inside an Android app.
+You are AgentX, an autonomous coding agent running inside an Android app.
 The user's workspace is: ${workspace.displayPath}
 
 Rules:
@@ -1663,8 +1663,8 @@ Rules:
             // Shizuku guidance: tell the agent the current state so it can guide the user.
             when {
                 shizuku.isGranted() -> sb.append("- Shizuku is connected with ADB-shell privileges: the shell tool automatically runs as the shell user whenever the working directory needs it (system paths, shared storage), with the same toolchain. Just use shell normally.\n")
-                shizuku.state.value == com.androidharness.app.data.env.ShizukuState.RUNNING_NO_PERMISSION -> sb.append("- Shizuku is running but AndroidHarness hasn't been granted access yet. If a task needs ADB-level shell access (edit system files, access any folder, etc.), tell the user to go to Settings → Terminal and tap \"Grant Shizuku access\".\n")
-                shizuku.state.value == com.androidharness.app.data.env.ShizukuState.NOT_RUNNING -> sb.append("- Shizuku is installed but not running. If a task needs ADB-level shell access, tell the user to open the Shizuku app, start the service, then in AndroidHarness go to Settings → Terminal and tap \"Refresh status\" followed by \"Grant Shizuku access\".\n")
+                shizuku.state.value == com.androidharness.app.data.env.ShizukuState.RUNNING_NO_PERMISSION -> sb.append("- Shizuku is running but AgentX hasn't been granted access yet. If a task needs ADB-level shell access (edit system files, access any folder, etc.), tell the user to go to Settings → Terminal and tap \"Grant Shizuku access\".\n")
+                shizuku.state.value == com.androidharness.app.data.env.ShizukuState.NOT_RUNNING -> sb.append("- Shizuku is installed but not running. If a task needs ADB-level shell access, tell the user to open the Shizuku app, start the service, then in AgentX go to Settings → Terminal and tap \"Refresh status\" followed by \"Grant Shizuku access\".\n")
                 else -> {} // NOT_INSTALLED: no mention; don't distract the agent.
             }
             sb.append(

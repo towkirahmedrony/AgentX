@@ -29,7 +29,7 @@ class AutomationWorker(context: Context, params: WorkerParameters) : CoroutineWo
         manager.createNotificationChannel(NotificationChannel("automations", "Automations", NotificationManager.IMPORTANCE_LOW))
         val notification = Notification.Builder(applicationContext, "automations")
             .setSmallIcon(android.R.drawable.ic_popup_sync)
-            .setContentTitle("AndroidHarness automation")
+            .setContentTitle("AgentX automation")
             .setContentText("Working on your saved task")
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, "Stop",

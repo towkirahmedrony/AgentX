@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in AndroidHarness isn't working as expected.
+description: Something in AgentX isn't working as expected.
 title: "[Bug] "
 body:
   - type: markdown
@@ -28,7 +28,7 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: AndroidHarness version
+      label: AgentX version
       placeholder: e.g. 1.2
     validations:
       required: true

@@ -48,7 +48,7 @@ internal fun ShizukuDisabledWarning(controller: ShizukuWarningController) {
                 Text(
                     "Shizuku is no longer available. Its server may have stopped or been killed " +
                         "in the background, or this app's access may have been revoked. " +
-                        "Start Shizuku and allow AndroidHarness access to use it again.",
+                        "Start Shizuku and allow AgentX access to use it again.",
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

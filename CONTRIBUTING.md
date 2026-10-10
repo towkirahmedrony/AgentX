@@ -1,6 +1,6 @@
-# Contributing to AndroidHarness
+# Contributing to AgentX
 
-Thanks for helping make AndroidHarness better. Bug fixes, tests, UI improvements, and clearer documentation are all welcome. You don't need to know the whole app to make a useful change.
+Thanks for helping make AgentX better. Bug fixes, tests, UI improvements, and clearer documentation are all welcome. You don't need to know the whole app to make a useful change.
 
 ## Before you start
 

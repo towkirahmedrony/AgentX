@@ -129,7 +129,7 @@ fun SetupScreen(
             ) {
                 HarnessMark(size = 44.dp)
                 Spacer(Modifier.size(2.dp))
-                Text("Welcome to AndroidHarness", style = MaterialTheme.typography.headlineSmall)
+                Text("Welcome to AgentX", style = MaterialTheme.typography.headlineSmall)
                 Text(
                     "An agent that reads, edits and runs code on this device. " +
                         "Complete the required setup to begin.",

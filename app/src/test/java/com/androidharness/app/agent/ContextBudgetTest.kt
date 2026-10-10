@@ -56,8 +56,10 @@ class ContextBudgetTest {
         bytes[20] = 0xFF.toByte(); bytes[21] = 0xC0.toByte()
         putBe(bytes, 22, 17)
         bytes[24] = 8
-        putBe(bytes, 25, height)
-        putBe(bytes, 27, width)
+        bytes[25] = ((height shr 8) and 0xFF).toByte()
+        bytes[26] = (height and 0xFF).toByte()
+        bytes[27] = ((width shr 8) and 0xFF).toByte()
+        bytes[28] = (width and 0xFF).toByte()
         return ImageData("image/jpeg", Base64.getEncoder().encodeToString(bytes))
     }
 
@@ -109,8 +111,12 @@ class ContextBudgetTest {
 
         assertTrue("a longer prompt must shrink the history budget", large < small)
         assertTrue("tool schemas must shrink the history budget", noTools > small)
-        assertEquals(budget.usableInputTokens, ContextBudget.historyBudgetTokens(budget, "", emptyList()) -
-            ContextBudget.REQUEST_OVERHEAD_TOKENS)
+        // The history allowance is the usable input minus the fixed request
+        // framing; with no prompt and no tools nothing else is taken out.
+        assertEquals(
+            budget.usableInputTokens,
+            ContextBudget.historyBudgetTokens(budget, "", emptyList()) + ContextBudget.REQUEST_OVERHEAD_TOKENS,
+        )
     }
 
     @Test

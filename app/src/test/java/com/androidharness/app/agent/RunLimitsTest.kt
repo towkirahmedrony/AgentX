@@ -132,7 +132,6 @@ class RunLimitsTest {
         budget.check()
         clock = 119_000
         budget.check()
-        clock = 120_000
         assertEquals("a minute of the two-minute budget is left", 1_000L, budget.remainingTimeMs())
         clock = 120_000
         val paused = assertThrows(TaskPaused::class.java) { budget.check() }

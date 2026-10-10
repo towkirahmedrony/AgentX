@@ -50,11 +50,14 @@ class ContextBudgetTest {
         val bytes = ByteArray(32)
         bytes[0] = 0xFF.toByte(); bytes[1] = 0xD8.toByte()
         // APP0 segment: marker at 2, length 16, payload 14 -> next marker at 20.
+        // JPEG segment lengths are 16-bit big-endian fields, so they must be
+        // written as two bytes: the 32-bit helper would leave the two high bytes
+        // where the length belongs and the parser would reject the segment.
         bytes[2] = 0xFF.toByte(); bytes[3] = 0xE0.toByte()
-        putBe(bytes, 4, 16)
+        bytes[4] = 0x00; bytes[5] = 16.toByte()
         // SOF0: marker at 20, length at 22, precision at 24, height 25, width 27.
         bytes[20] = 0xFF.toByte(); bytes[21] = 0xC0.toByte()
-        putBe(bytes, 22, 17)
+        bytes[22] = 0x00; bytes[23] = 17.toByte()
         bytes[24] = 8
         bytes[25] = ((height shr 8) and 0xFF).toByte()
         bytes[26] = (height and 0xFF).toByte()

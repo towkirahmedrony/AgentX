@@ -113,7 +113,56 @@ fun ContextUsageDialog(
                     BreakdownRow("Messages", estimate?.messagesTokens, estimateTotal)
                     BreakdownRow("Tools and Skills", estimate?.toolsTokens, estimateTotal)
                     BreakdownRow("System Prompt", estimate?.systemTokens, estimateTotal)
+                    BreakdownRow("Images", estimate?.imagesTokens, estimateTotal)
                     BreakdownRow("Meta Context", estimate?.metaTokens, estimateTotal)
+                }
+
+                // Why the agent does or does not compact: the window it actually
+                // measures against, what is already spoken for, and whether the
+                // numbers are estimates or the provider's own count. Every
+                // estimated figure is prefixed "~" and says so, because the app
+                // has no on-device tokenizer and must never imply otherwise.
+                if (estimate != null && estimate.limitTokens > 0) {
+                    HorizontalDivider()
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "Budget",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        TokenRow(
+                            "Context window",
+                            formatTokenCount(estimate.limitTokens.toLong()) +
+                                if (estimate.limitKnown) "" else " (safe fallback)",
+                        )
+                        TokenRow("Reserved for reply", formatTokenCount(estimate.reservedOutputTokens.toLong()))
+                        TokenRow("Estimation safety margin", formatTokenCount(estimate.safetyMarginTokens.toLong()))
+                        TokenRow("Available for input", formatTokenCount(estimate.usableInputTokens.toLong()))
+                        TokenRow("Estimated input", "~${formatTokenCount(estimate.total.toLong())} (approximate)")
+                        if (estimate.providerInputTokens > 0) {
+                            TokenRow(
+                                "Last request, measured",
+                                formatTokenCount(estimate.providerInputTokens.toLong()),
+                            )
+                        }
+                        if (estimate.compactionTriggerTokens > 0) {
+                            TokenRow(
+                                "Compacted at",
+                                "~${formatTokenCount(estimate.compactionTriggerTokens.toLong())} tokens",
+                            )
+                            TokenRow("Messages folded away", estimate.removedMessages.toString())
+                            TokenRow("Tokens removed", "~${formatTokenCount(estimate.removedTokens.toLong())}")
+                        }
+                        if (estimate.overflowRejected) {
+                            Text(
+                                "The provider rejected the last request as over its context window; " +
+                                    "the history was shortened and the request retried.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
 
                 HorizontalDivider()

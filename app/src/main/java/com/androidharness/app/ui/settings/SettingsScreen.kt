@@ -1860,6 +1860,7 @@ private fun AgentSection(
         settings = settings,
         onPermissionMode = { scope.launch { container.settings.setPermissionMode(it) } },
         onContextLimit = { scope.launch { container.settings.setMaxContextTokens(it) } },
+        onContextSafetyMargin = { scope.launch { container.settings.setContextSafetyMarginPercent(it) } },
         onIterationLimit = { scope.launch { container.settings.setMaxIterations(it) } },
         onProjectInstructions = { showAgentsDialog = true },
     )

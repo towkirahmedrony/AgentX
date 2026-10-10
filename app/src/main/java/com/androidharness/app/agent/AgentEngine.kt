@@ -103,14 +103,51 @@ internal fun detectMissingHeadlineTool(output: String): String? {
     return null
 }
 
-/** Estimated token breakdown of the request about to be sent (chars / 4). */
+/**
+ * Estimated token breakdown of the request about to be sent.
+ *
+ * Every count here is an APPROXIMATION produced by [ContextBudget]; the model
+ * has no on-device tokenizer, so nothing in this type may be presented as exact
+ * usage. The only exact number is [providerInputTokens], which is what the
+ * provider itself reported for the previous completed request.
+ *
+ * The budget fields exist so a diagnostics surface can answer "why did it
+ * compact, and against what limit" without re-deriving the arithmetic: what
+ * window is in use, how much of it is already spoken for, and whether the
+ * window was actually known or the documented fallback.
+ */
 data class ContextEstimate(
     val messagesTokens: Int,
     val systemTokens: Int,
     val toolsTokens: Int,
-    val metaTokens: Int = 256,
+    val imagesTokens: Int = 0,
+    val metaTokens: Int = ContextBudget.REQUEST_OVERHEAD_TOKENS,
+    /** Window in use, after bounding the setting by known model metadata. */
+    val limitTokens: Int = 0,
+    /** Output room held back for this request (includes any thinking headroom). */
+    val reservedOutputTokens: Int = 0,
+    /** Estimation-error allowance held back on top of the output room. */
+    val safetyMarginTokens: Int = 0,
+    /** False only when neither the setting nor model metadata was usable. */
+    val limitKnown: Boolean = true,
+    /** Provider-reported input tokens of the last completed request; 0 if none. */
+    val providerInputTokens: Int = 0,
+    /** Estimated input tokens at which compaction fired; 0 when it did not. */
+    val compactionTriggerTokens: Int = 0,
+    /** Messages removed by the last compaction or trim, and their token value. */
+    val removedMessages: Int = 0,
+    val removedTokens: Int = 0,
+    /** True when a provider rejected the last request as over its context window. */
+    val overflowRejected: Boolean = false,
 ) {
-    val total: Int get() = messagesTokens + systemTokens + toolsTokens + metaTokens
+    val total: Int get() = messagesTokens + systemTokens + toolsTokens + imagesTokens + metaTokens
+
+    /** Input the next request may occupy before compaction is required. */
+    val usableInputTokens: Int
+        get() = (limitTokens - reservedOutputTokens - safetyMarginTokens).coerceAtLeast(0)
+
+    /** Always true: this breakdown is an estimate, never provider-exact usage. */
+    val approximate: Boolean get() = true
 }
 
 sealed interface AgentEvent {
@@ -177,6 +214,20 @@ sealed interface AgentEvent {
      * normal stop.
      */
     data class Finished(val reason: String? = null) : AgentEvent
+
+    /**
+     * The run ended at a configured limit, at a stall, or by user cancellation,
+     * with the numbers behind it. Distinct from [Error] on purpose: a budget stop
+     * is resumable and is not a failure, so it must not surface as an error.
+     */
+    data class Stopped(val stop: RunStop) : AgentEvent
+
+    /**
+     * One provider request settled. [usageReported] is false when the provider
+     * returned no usage at all, in which case [conservativeTokens] is the
+     * documented estimate that must be charged instead of zero.
+     */
+    data class RequestSettled(val usageReported: Boolean, val conservativeTokens: Int) : AgentEvent
 }
 
 /**
@@ -216,8 +267,15 @@ class AgentEngine(
         maxContextTokens: Int,
         mode: AgentMode,
         userInjections: Channel<String>? = null,
-        /** Hard cap on tool-call iterations; 0 or negative = unlimited. */
-        maxIterations: Int = 0,
+        /**
+         * Hard cap on tool-call iterations.
+         *
+         * `0` means Unlimited and is only ever reached from a value the user
+         * chose explicitly; the default here is the bounded
+         * [ExecutionLimits.DEFAULT_ITERATIONS] so no caller can obtain an
+         * unbounded run by omitting the argument.
+         */
+        maxIterations: Int = ExecutionLimits.DEFAULT_ITERATIONS,
         /** Run-scoped tools (e.g. connected MCP servers) on top of the registry. */
         extraTools: List<com.androidharness.app.tools.Tool> = emptyList(),
         /**
@@ -228,6 +286,8 @@ class AgentEngine(
         resolveSubagentModel: (suspend (String) -> SubagentModelResolution)? = null,
         repoMapEnabled: Boolean = true,
         pinnedInstructions: String = "",
+        /** Estimation-error allowance, as a share of the window; see [ContextBudget]. */
+        contextSafetyMarginPercent: Int = ContextBudget.DEFAULT_SAFETY_MARGIN_PERCENT,
         durableEvent: (suspend (AgentEvent) -> Unit)? = null,
     ): Flow<AgentEvent> = channelFlow {
         // Parallel subagents emit from async children, plain flow{} forbids
@@ -266,11 +326,45 @@ class AgentEngine(
         val activeGroups: MutableSet<ToolGroup> = mutableSetOf<ToolGroup>().apply {
             addAll(ToolGroups.initialGroups())
         }
-        var tools: List<com.androidharness.app.llm.ToolSchema> = emptyList()
+        // Filled in before the first trim: the tool schemas are a real part of
+        // the request, and a flat guess for them instead is what let requests
+        // through that the provider then rejected as over its context window.
+        var tools: List<com.androidharness.app.llm.ToolSchema> = if (agentContextEnabled) {
+            runRegistry.schemas(
+                readOnlyOnly = mode == AgentMode.PLAN,
+                context = ToolContext(workspace = workspace, sessionId = sessionId),
+                descriptionOverrides = replySettings.promptOverrides.toolDescriptions,
+                groups = activeGroups,
+            )
+        } else {
+            emptyList()
+        }
+        // The one budget this run enforces, resolved once: the window, the
+        // output room (including any thinking headroom the provider will add to
+        // `max_tokens`) and the estimation-error margin do not change mid-run.
+        val budget = ContextBudget.resolve(
+            configuredLimitTokens = maxContextTokens,
+            knownModelTokens = knownModelLimitTokens(config),
+            maxOutputTokens = options.maxOutputTokens,
+            thinking = options.thinking,
+            providerType = config.type,
+            safetyMarginPercent = contextSafetyMarginPercent,
+        )
+        fun cavemanized(prompt: String): String = com.androidharness.app.caveman.CavemanPolicy.apply(
+            prompt,
+            installed = replySettings.cavemanInstalled,
+            intensity = replySettings.cavemanIntensity,
+            wenyan = replySettings.cavemanWenyan,
+        )
+        var requestSystemPrompt = cavemanized(systemPrompt)
+        // Recomputed per round: both the prompt and the exposed tool set can
+        // change while the run is in flight.
+        fun historyBudget(): Int = ContextBudget.historyBudgetTokens(budget, requestSystemPrompt, tools)
         val chatHistory = if (agentContextEnabled) history else com.androidharness.app.local.LocalChatCodec.plainChatMessages(history)
         val working = (if (localChat) chatHistory.map { it.withImagesResolved() } else ContextHygiene.trimHistory(
             ContextHygiene.shrinkToolResults(history.map { it.withImagesResolved() }),
-            maxContextTokens, options.maxOutputTokens,
+            budget.limitTokens,
+            (budget.limitTokens - historyBudget()).coerceAtLeast(0),
         )).toMutableList()
         // If active model is known to be text-only, strip image data upfront
         if (!localChat && !com.androidharness.app.llm.visionCapable(config.model)) {
@@ -282,21 +376,79 @@ class AgentEngine(
         // Stable per-session cache routing for providers that support it.
         val requestOptions = options.copy(cacheKey = sessionId)
         var iterations = 0
-        val deterministicFailures = java.util.concurrent.ConcurrentHashMap<String, String>()
+        // Per-run guard state, created here rather than held as fields: one
+        // engine instance serves every session, so none of this may outlive a run.
+        //  - failureGuard declines an identical call that keeps failing, and is
+        //    cleared by any success (the workspace may have changed);
+        //  - progressGuard stops a run that produces nothing at all, without
+        //    bounding a long task that keeps making progress.
+        val failureGuard = RepeatedFailureGuard()
+        val progressGuard = ProgressGuard()
+        var retriesThisRun = 0
+        var subagentBudgetReached = false
+        val iterationCeiling = ExecutionLimits.ceilingOrNull(maxIterations)
+        var terminated = false
+
+        /**
+         * Emits one structured stop and marks the run terminated, so no later
+         * code path can start another iteration.
+         */
+        suspend fun stop(kind: StopKind, message: String) {
+            if (terminated) return
+            terminated = true
+            val budget = kotlin.coroutines.coroutineContext[TaskBudget]
+            emit(
+                AgentEvent.Stopped(
+                    RunStop(
+                        kind = kind,
+                        message = message,
+                        iteration = iterations,
+                        maxIterations = iterationCeiling,
+                        elapsedMs = budget?.usage()?.third ?: 0L,
+                        usageStatus = budget?.usageStatus() ?: UsageStatus.UNKNOWN,
+                        retries = retriesThisRun,
+                        subagentBudgetReached = subagentBudgetReached,
+                    ),
+                ),
+            )
+        }
         // Termination code of the most recent streamed request, and how many
         // times a silent (reasoning-only, no answer) model has been asked to
         // actually produce its answer.
         var lastFinishReason: String? = null
         var answerNudges = 0
+        // Loop prevention and bounded recovery for the context budget. The
+        // guard makes a second compaction of an unchanged history impossible;
+        // recovery caps how many times a rejected request may be re-issued.
+        val compactionGuard = CompactionGuard()
+        val overflowRecovery = OverflowRecovery()
+        // What the provider reported for the last completed request, and whether
+        // it ever rejected one as over its window. Both are surfaced in the
+        // context diagnostics so an estimate can be compared against reality.
+        var lastProviderInputTokens = 0
+        var overflowRejected = false
 
         while (true) {
-            kotlin.coroutines.coroutineContext[TaskBudget]?.check()
-            if (maxIterations > 0 && iterations++ >= maxIterations) {
-                emit(AgentEvent.Error("Stopped after $maxIterations tool iterations (safety limit)."))
-                break
-            } else if (maxIterations <= 0) {
-                iterations++ // tracked for nothing, unlimited mode
+            // One decision point for "may another round start". A terminated run
+            // can therefore never begin one, and the ceiling is checked before
+            // any expensive work is started.
+            when (ExecutionLimits.decideNextRound(terminated, iterations, maxIterations)) {
+                ExecutionLimits.RoundDecision.STOPPED -> break
+                ExecutionLimits.RoundDecision.ITERATION_REACHED -> {
+                    stop(
+                        StopKind.ITERATION_LIMIT,
+                        "Stopped after $maxIterations tool iterations (iteration ceiling). " +
+                            "Raise the limit to continue, or resume with a narrower request.",
+                    )
+                    break
+                }
+                ExecutionLimits.RoundDecision.RUN -> Unit
             }
+            kotlin.coroutines.coroutineContext[TaskBudget]?.check()
+            iterations++
+            // Whether any tool call this round returned cleanly. Reset per round;
+            // drives the stall guard below.
+            var roundProgress = false
 
             // Messages typed while the agent was running steer the next turn.
             userInjections?.let { channel ->
@@ -320,6 +472,7 @@ class AgentEngine(
                 replySettings = nextReplySettings
                 promptSandboxOff = sandboxOff
                 systemPrompt = runSystemPrompt(sandboxOff)
+                requestSystemPrompt = cavemanized(systemPrompt)
             }
             // Recompute the exposed schemas from the tools activated so far.
             if (agentContextEnabled) {
@@ -339,23 +492,65 @@ class AgentEngine(
                     workspace
                 }
 
-            val requestSystemPrompt = if (!agentContextEnabled) "" else com.androidharness.app.caveman.CavemanPolicy.apply(
-                systemPrompt,
-                installed = replySettings.cavemanInstalled,
-                intensity = replySettings.cavemanIntensity,
-                wenyan = replySettings.cavemanWenyan,
+            requestSystemPrompt = if (!agentContextEnabled) "" else cavemanized(systemPrompt)
+            // Auto-compact BEFORE the request can grow past the budget the
+            // provider will actually enforce: the window in use (bounded by the
+            // model's own limit when known), minus the output room and the
+            // estimation-error margin. A flat share of the configured window,
+            // with a fixed guess for the prompt and schemas, is exactly what
+            // used to let an over-budget request leave the device.
+            var estimate = estimateContext(
+                working, requestSystemPrompt, tools, budget,
+                providerInputTokens = lastProviderInputTokens,
+                overflowRejected = overflowRejected,
             )
-            // Auto-compact before the request grows past the context budget.
-            val estimate = estimateContext(working, requestSystemPrompt, tools)
             emit(AgentEvent.EstimatedContext(estimate))
-            if (!localChat && estimate.total > (maxContextTokens * 0.8).toInt() && working.size > 6) {
-                val compacted = compact(provider, config, apiKey, working, maxContextTokens, sessionId) { emit(it) }
+            if (!localChat &&
+                working.size > ContextHygiene.COMPACT_KEEP_RECENT &&
+                budget.exceeds(estimate.total) &&
+                compactionGuard.shouldAttempt(working)
+            ) {
+                val beforeTokens = estimate.total
+                val beforeCount = working.size
+                compactionGuard.record(working)
+                val compacted = compact(provider, config, apiKey, working, budget, sessionId) { emit(it) }
                 if (compacted != null) {
                     working.clear()
                     working.addAll(compacted)
+                    val after = estimateContext(
+                        working, requestSystemPrompt, tools, budget,
+                        providerInputTokens = lastProviderInputTokens,
+                        overflowRejected = overflowRejected,
+                    )
+                    estimate = after.copy(
+                        compactionTriggerTokens = beforeTokens,
+                        removedMessages = (beforeCount - working.size).coerceAtLeast(0),
+                        removedTokens = (beforeTokens - after.total).coerceAtLeast(0),
+                    )
                     // The window just shrank: refresh the context panel now
                     // instead of waiting for the next request's usage row.
-                    emit(AgentEvent.EstimatedContext(estimateContext(working, requestSystemPrompt, tools)))
+                    emit(AgentEvent.EstimatedContext(estimate))
+                }
+            }
+            // Still over budget: one request per round must fit, so shrink hard
+            // rather than spend a round being rejected for a size the app can
+            // already see is too large. No retry here; this either fits or the
+            // provider's own error path reports it.
+            if (!localChat && budget.exceeds(estimate.total)) {
+                val beforeCount = working.size
+                val trimmed = ContextHygiene.emergencyTrim(working, historyBudget())
+                if (trimmed.size < beforeCount) {
+                    working.clear()
+                    working.addAll(trimmed)
+                    estimate = estimateContext(
+                        working, requestSystemPrompt, tools, budget,
+                        providerInputTokens = lastProviderInputTokens,
+                        overflowRejected = overflowRejected,
+                    ).copy(
+                        compactionTriggerTokens = estimate.total,
+                        removedMessages = beforeCount - working.size,
+                    )
+                    emit(AgentEvent.EstimatedContext(estimate))
                 }
             }
 
@@ -363,6 +558,9 @@ class AgentEngine(
             var thinking = StringBuilder()
             var calls = mutableListOf<ToolCallData>()
             var outputTokens = 0
+            // Whether the provider reported usage for this request. When it does
+            // not, the budget is charged a conservative figure instead of zero.
+            var usageSeenThisRound = false
             var requestStartedNs = System.nanoTime()
             var firstTokenNs = 0L
             var lastTokenNs = 0L
@@ -416,6 +614,10 @@ class AgentEngine(
                     }
                     is StreamEvent.Usage -> {
                         outputTokens = event.outputTokens
+                        usageSeenThisRound = true
+                        // The provider's own count for the request that just
+                        // completed: the only exact input figure the app has.
+                        lastProviderInputTokens = event.inputTokens
                         emit(
                             AgentEvent.Usage(
                                 event.inputTokens, event.outputTokens,
@@ -452,7 +654,7 @@ class AgentEngine(
                 hasOutput = { text.isNotEmpty() || thinking.isNotEmpty() || calls.isNotEmpty() },
                 handleEvent = streamEventHandler,
                 retryReason = { f -> f.take(200) },
-                emitEvent = { emit(it) },
+                emitEvent = { retrying -> retriesThisRun++; emit(retrying) },
                 timeouts = runTimeouts,
                 allowRetries = !localChat,
                 onTerminalFailure = { recoverableFailure = it },
@@ -481,10 +683,97 @@ class AgentEngine(
                     hasOutput = { text.isNotEmpty() || thinking.isNotEmpty() || calls.isNotEmpty() },
                     handleEvent = streamEventHandler,
                     retryReason = { f -> f.take(200) },
-                    emitEvent = { emit(it) },
+                    emitEvent = { retrying -> retriesThisRun++; emit(retrying) },
                     timeouts = runTimeouts,
                     onTerminalFailure = { recoverableFailure = it },
                 )
+            }
+
+            // A request that came back cleanly clears the overflow flag, so the
+            // diagnostics always describe the most recent attempt.
+            if (failure == null) overflowRejected = false
+
+            // One charge per settled request: the provider's own figure when it
+            // gave one, and a documented conservative figure when it did not
+            // (the estimated input plus the whole output reservation). A request
+            // whose usage is unknown must never be counted as consuming nothing.
+            emit(
+                AgentEvent.RequestSettled(
+                    usageReported = usageSeenThisRound,
+                    conservativeTokens = estimate.total + options.maxOutputTokens.coerceAtLeast(0),
+                ),
+            )
+
+            // Context-overflow recovery. The provider has told us, explicitly,
+            // that this request did not fit — which means our own estimate was
+            // too optimistic. Shrink the history and re-issue, but only when
+            // that can actually help and only within a fixed attempt budget.
+            //
+            // Safe to replay: the request failed before producing output or
+            // executing a single tool call, so nothing side-effecting is
+            // repeated. Cancellation still propagates — recovery is a suspend
+            // call with no catch, and it only ever loops by `continue`-ing into
+            // the next iteration, which the stream collection and the TaskBudget
+            // check remain able to interrupt.
+            if (!localChat && ContextOverflow.isOverflow(failure)) {
+                overflowRejected = true
+                val beforeTokens = ContextHygiene.totalTokens(working)
+                val beforeCount = working.size
+                val retry = recoverFromContextOverflow(
+                    failure = failure,
+                    recovery = overflowRecovery,
+                    canCompact = compactionGuard.shouldAttempt(working),
+                    compactHistory = {
+                        if (!compactionGuard.shouldAttempt(working)) {
+                            false
+                        } else {
+                            compactionGuard.record(working)
+                            val compacted = compact(provider, config, apiKey, working, budget, sessionId) { emit(it) }
+                            if (compacted == null) {
+                                false
+                            } else {
+                                working.clear()
+                                working.addAll(compacted)
+                                true
+                            }
+                        }
+                    },
+                    shrinkWithoutSummary = {
+                        // No summary available (or compaction exhausted): drop
+                        // the oldest turns and squeeze tool output instead.
+                        val trimmed = ContextHygiene.emergencyTrim(working, historyBudget())
+                        val smaller = ContextHygiene.totalTokens(trimmed) < beforeTokens
+                        if (smaller) {
+                            working.clear()
+                            working.addAll(trimmed)
+                        }
+                        smaller
+                    },
+                    exhausted = { ContextOverflow.exhaustedMessage(budget, estimate.total) },
+                    onExhausted = { emit(AgentEvent.Error(it, recoverable = false)) },
+                    onRetrying = { attempt ->
+                        emit(AgentEvent.Compacting(
+                            "The provider rejected the request as over its context window. " +
+                                "Retrying ($attempt/${ContextOverflow.MAX_RECOVERIES}) with a smaller history.",
+                        ))
+                    },
+                )
+                // No retry means the attempt budget is spent or the history
+                // could not be made smaller: either way another request would
+                // fail identically, so the run ends with the actionable message
+                // recoverFromContextOverflow already emitted.
+                if (!retry) break
+                estimate = estimateContext(
+                    working, requestSystemPrompt, tools, budget,
+                    providerInputTokens = lastProviderInputTokens,
+                    overflowRejected = true,
+                ).copy(
+                    compactionTriggerTokens = beforeTokens,
+                    removedMessages = (beforeCount - working.size).coerceAtLeast(0),
+                    removedTokens = (beforeTokens - ContextHygiene.totalTokens(working)).coerceAtLeast(0),
+                )
+                emit(AgentEvent.EstimatedContext(estimate))
+                continue
             }
 
             // A turn that produced reasoning but no answer and no tool calls is
@@ -516,6 +805,7 @@ class AgentEngine(
             when {
                 failure != null -> {
                     emit(AgentEvent.Error(failure!!, recoverable = recoverableFailure))
+                    terminated = true
                     break
                 }
                 wantsNudge -> continue
@@ -565,15 +855,19 @@ class AgentEngine(
                     subagentCalls.map { call ->
                         async {
                             android.util.Log.d("HarnessSpawn", "task ${call.id} START ${System.currentTimeMillis()}")
-                            val result = executeWithPermission(
-                                call, effectiveMode, sessionAllowedTools, execWorkspace,
+                            val result = executeWithFailureGuard(
+                                call, failureGuard, effectiveMode, sessionAllowedTools, execWorkspace,
                                 sessionId, turnId, mode, requestOptions, config, apiKey,
                                 runRegistry, resolveSubagentModel, serialEmit,
                             )
                             android.util.Log.d("HarnessSpawn", "task ${call.id} END ${System.currentTimeMillis()}")
                             call.id to result
                         }
-                    }.awaitAll().forEach { (id, result) -> results[id] = result }
+                    }.awaitAll().forEach { (id, result) ->
+                        results[id] = result
+                        if (result.ok) roundProgress = true
+                        if (result.output.startsWith(SUBAGENT_BUDGET_PREFIX)) subagentBudgetReached = true
+                    }
                 }
             }
 
@@ -592,21 +886,26 @@ class AgentEngine(
                         group.map { call ->
                             async {
                                 call.id to executeWithFailureGuard(
-                                    call, deterministicFailures, effectiveMode, sessionAllowedTools, execWorkspace,
+                                    call, failureGuard, effectiveMode, sessionAllowedTools, execWorkspace,
                                     sessionId, turnId, mode, requestOptions, config, apiKey,
                                     runRegistry, resolveSubagentModel, serialEmit,
                                 )
                             }
-                        }.awaitAll().forEach { (id, result) -> results[id] = result }
+                        }.awaitAll().forEach { (id, result) ->
+                            results[id] = result
+                            if (result.ok) roundProgress = true
+                        }
                     }
                 } else {
                     ordinaryIndex++
                     emit(AgentEvent.ToolStarted(first))
-                    results[first.id] = executeWithFailureGuard(
-                        first, deterministicFailures, effectiveMode, sessionAllowedTools, execWorkspace,
+                    val serialResult = executeWithFailureGuard(
+                        first, failureGuard, effectiveMode, sessionAllowedTools, execWorkspace,
                         sessionId, turnId, mode, requestOptions, config, apiKey,
                         runRegistry, resolveSubagentModel,
                     ) { emit(it) }
+                    if (serialResult.ok) roundProgress = true
+                    results[first.id] = serialResult
                 }
             }
 
@@ -624,6 +923,21 @@ class AgentEngine(
                 working += toolMessage.withImagesResolved()
                 emit(AgentEvent.ToolFinished(call.id, result))
             }
+
+            // A round in which nothing succeeded is a barren round. Bounded, so a
+            // stuck agent stops within a few rounds instead of running all night;
+            // any success resets the count, so a long productive task — however
+            // long it legitimately runs — is never interrupted by this guard.
+            if (progressGuard.recordRound(roundProgress)) {
+                val repeated = failureGuard.summary()
+                stop(
+                    StopKind.STALLED,
+                    "Stopped after ${progressGuard.barrenRounds} rounds without a single successful tool result" +
+                        (if (repeated.isEmpty()) "" else " (repeated failures: $repeated)") +
+                        ". Inspect the failing step, or give more specific guidance and resume.",
+                )
+                break
+            }
         }
     }
 
@@ -638,7 +952,7 @@ class AgentEngine(
 
     private suspend fun executeWithFailureGuard(
         call: ToolCallData,
-        deterministicFailures: MutableMap<String, String>,
+        failures: RepeatedFailureGuard,
         mode: PermissionMode,
         sessionAllowedTools: MutableSet<String>,
         workspace: WorkspaceFs,
@@ -652,23 +966,37 @@ class AgentEngine(
         resolveSubagentModel: (suspend (String) -> SubagentModelResolution)?,
         emitEvent: suspend (AgentEvent) -> Unit,
     ): ToolResult {
-        val signature = toolCallSignature(call)
-        deterministicFailures[signature]?.let { previous ->
-            val blocked = ToolResult(
-                false,
-                "Blocked unchanged retry: this exact ${call.name} call already failed deterministically. " +
-                    "$previous Change the inputs or inspect current state before retrying.",
-            )
-            emitEvent(AgentEvent.ToolMessageCommitted(ChatMessage(role = Role.TOOL, text = blocked.output,
-                toolCallId = call.id, toolName = call.name, isError = true)))
-            return blocked
-        }
         val result = executeWithPermission(
             call, mode, sessionAllowedTools, workspace, sessionId, turnId, agentMode,
             requestOptions, config, apiKey, registry, resolveSubagentModel, emitEvent,
         )
-        deterministicFailureHint(call, result)?.let { deterministicFailures[signature] = it }
-        return result
+        if (result.ok) {
+            // A success means the workspace may have moved, so an identical retry
+            // that was failing before is allowed again. This is what keeps a
+            // legitimate "fix the input, then re-run the same command" flow
+            // working while still cutting off a genuinely stuck loop.
+            failures.progress()
+            return result
+        }
+        val hint = deterministicFailureHint(call, result)
+        val blocked = failures.verdict(
+            RepeatedFailureGuard.Failure(
+                signature = toolCallSignature(call),
+                tool = call.name,
+                error = result.output.take(160),
+            ),
+            deterministic = hint != null,
+        ) ?: return result
+        val advice = hint ?: "It repeated the same inputs, so it cannot succeed unchanged."
+        val blockedResult = ToolResult(
+            false,
+            "Blocked unchanged retry: ${blocked.tool} has now failed ${blocked.attempts} times with identical " +
+                "arguments. $advice Change the inputs or inspect the current state before retrying. " +
+                "Earlier error: ${blocked.firstError}",
+        )
+        emitEvent(AgentEvent.ToolMessageCommitted(ChatMessage(role = Role.TOOL, text = blockedResult.output,
+            toolCallId = call.id, toolName = call.name, isError = true)))
+        return blockedResult
     }
 
     private fun toolCallSignature(call: ToolCallData): String {
@@ -1000,10 +1328,16 @@ class AgentEngine(
         val executed = try {
             if (call.name in setOf("git_push", "git_pull", "http_request", "shell", "shell_background") &&
                 workspace !is com.androidharness.app.workspace.SshFs) prepareGitHub()
-            val raw = tool.execute(args, ToolContext(workspace, mode == PermissionMode.FULL_ACCESS, sessionId))
+            val raw = withToolTimeout(call.name) {
+                tool.execute(args, ToolContext(workspace, mode == PermissionMode.FULL_ACCESS, sessionId))
+            }
             raw.redacted()
         } catch (ce: CancellationException) {
             throw ce
+        } catch (timeout: ToolTimedOut) {
+            // Reported to the model as an ordinary failed result so it can change
+            // approach, rather than silently hanging the run forever.
+            ToolResult(false, timeout.message + ". The tool was stopped; inspect the current state.").redacted()
         } catch (e: Exception) {
             ToolResult(false, e.message ?: "${call.name} failed").redacted()
         }
@@ -1031,9 +1365,13 @@ class AgentEngine(
                     // Repaired: run the exact same command again for the model.
                     kotlin.coroutines.coroutineContext[TaskBudget]?.check()
                     val retry = try {
-                        tool.execute(args, ToolContext(workspace, mode == PermissionMode.FULL_ACCESS, sessionId))
+                        withToolTimeout(call.name) {
+                            tool.execute(args, ToolContext(workspace, mode == PermissionMode.FULL_ACCESS, sessionId))
+                        }
                     } catch (ce: CancellationException) {
                         throw ce
+                    } catch (timeout: ToolTimedOut) {
+                        ToolResult(false, timeout.message).redacted()
                     } catch (e: Exception) {
                         ToolResult(false, e.message ?: "${call.name} failed again after repair").redacted()
                     }
@@ -1259,13 +1597,28 @@ class AgentEngine(
         // burn the cap on thinking before ever answering (reasoning streamed,
         // no answer). Subagents get the main loop's full output budget.
 
-        var iteration = 0
+        // An independent budget for this subagent. The parent's token/cost/time
+        // limits still apply through the shared TaskBudget — usage is charged
+        // there — but a subagent can no longer run unbounded and consume the
+        // whole run before it reports back. The time slice is half of whatever
+        // the parent has left, so one delegation cannot spend the entire
+        // remaining allowance; when the parent has no time limit there is no
+        // slice, and the iteration budget is the only ceiling.
+        val parentRemainingMs = kotlin.coroutines.coroutineContext[TaskBudget]?.remainingTimeMs()
+        val subagentBudget = SubagentBudget(
+            maxIterations = SUBAGENT_MAX_ITERATIONS,
+            deadlineMs = parentRemainingMs?.let { if (it <= 0) 1L else (it / 2).coerceAtLeast(1_000L) },
+        )
         var nudged = false
-        // No step cap (user decision): a subagent runs until it answers, fails
-        // structurally, or its provider stops responding. long research
-        // passes are legitimate, and the parent sees real failures only.
         while (true) {
-            iteration++
+            if (!subagentBudget.nextRound()) {
+                step("Subagent budget reached")
+                return ToolResult(
+                    false,
+                    "$SUBAGENT_BUDGET_PREFIX: ${subagentBudget.reason()} Narrow the next delegation, " +
+                        "or do the remaining step yourself.",
+                )
+            }
             val text = StringBuilder()
             val calls = mutableListOf<ToolCallData>()
             val subThinking = StringBuilder()
@@ -1389,9 +1742,11 @@ class AgentEngine(
                     } else {
                         try {
                             val args = json.parseToJsonElement(call.argumentsJson).jsonObject
-                            tool.execute(args, ctx).redacted()
+                            withToolTimeout(call.name) { tool.execute(args, ctx) }.redacted()
                         } catch (ce: CancellationException) {
                             throw ce
+                        } catch (timeout: ToolTimedOut) {
+                            ToolResult(false, timeout.message).redacted()
                         } catch (e: Exception) {
                             ToolResult(false, e.message ?: "${call.name} failed").redacted()
                         }
@@ -1420,28 +1775,43 @@ class AgentEngine(
         }
     }
 
-    /** Summarize old history into one message when the context is nearly full. */
+    /**
+     * Summarize old history into one message when the request no longer fits
+     * the budget.
+     *
+     * The split is [ContextHygiene.compactionSplit]'s: the kept slice never
+     * begins on a tool result (which would orphan it from the call being
+     * summarized away) and always contains the newest user request, so the
+     * model keeps the instruction it is answering, verbatim, across the fold.
+     * The summarizer's own input is bounded by the same budget, so a history
+     * too large to send is also too large to summarize and cannot loop.
+     */
     private suspend fun compact(
         provider: LlmProvider,
         config: ProviderConfig,
         apiKey: String,
         working: MutableList<ChatMessage>,
-        maxContextTokens: Int,
+        budget: ContextBudget.Budget,
         sessionId: String? = null,
         emitEvent: suspend (AgentEvent) -> Unit,
     ): List<ChatMessage>? {
-        emitEvent(AgentEvent.Compacting("Context near ${(maxContextTokens / 1000)}K. summarizing older messages"))
+        emitEvent(AgentEvent.Compacting("Context near ${(budget.limitTokens / 1000)}K. summarizing older messages"))
 
-        // keep the most recent messages; never start the kept slice on a TOOL message
-        var keep = 8
-        while (keep < working.size && working[working.size - keep].role == Role.TOOL) keep++
-        val keepCount = keep.coerceAtMost(working.size)
-        val older = working.subList(0, working.size - keepCount)
-        val recent = working.subList(working.size - keepCount, working.size)
+        val (older, recent) = ContextHygiene.compactionSplit(working)
         if (older.isEmpty()) return null
 
         val summary = StringBuilder()
         val olderClean = ContextHygiene.stripImages(older)
+        // The summarizer request must itself fit: reserving only its own output
+        // room and framing, everything else is available to the transcript it
+        // reads. Without this a very long conversation fails summarization as
+        // well as the request it was meant to rescue.
+        val summarizerReserve = SUMMARY_OUTPUT_TOKENS + ContextBudget.REQUEST_OVERHEAD_TOKENS
+        val summarizerInput = if (ContextHygiene.totalTokens(olderClean) <= budget.usableInputTokens - summarizerReserve) {
+            olderClean
+        } else {
+            ContextHygiene.trimToBudget(olderClean, (budget.usableInputTokens - summarizerReserve).coerceAtLeast(0))
+        }
         val compactTimeouts =
             StreamTimeoutPolicy.resolve(config, com.androidharness.app.local.LocalModelCatalog.isLocal(config.id))
         val compactError = StreamRetrier.run(
@@ -1451,8 +1821,8 @@ class AgentEngine(
                     "Summarize this coding-agent conversation compactly. Preserve: the user's goal, " +
                         "files created/modified and their paths, key decisions, pending work and next steps. " +
                         "Output plain notes only.",
-                    olderClean, emptyList(),
-                    RequestOptions(maxOutputTokens = 1_500, thinking = ThinkingLevel.OFF, cacheKey = sessionId),
+                    summarizerInput, emptyList(),
+                    RequestOptions(maxOutputTokens = SUMMARY_OUTPUT_TOKENS, thinking = ThinkingLevel.OFF, cacheKey = sessionId),
                 )
             },
             onAttemptStart = { summary.clear() },
@@ -1482,7 +1852,12 @@ class AgentEngine(
         if (summary.isBlank()) return null
 
         emitEvent(AgentEvent.Compacted(summary.toString()))
-        return listOf(ContextHygiene.summaryMessage(summary.toString())) + recent
+        // Defensive: the split already guarantees a valid boundary, and
+        // sanitizing can only drop results that no longer answer a retained
+        // call, never an assistant message (an interrupted-run call stays).
+        return ContextHygiene.sanitizeToolPairing(
+            listOf(ContextHygiene.summaryMessage(summary.toString())) + recent,
+        )
     }
 
     /**
@@ -1504,23 +1879,48 @@ class AgentEngine(
         }
     }
 
+    /**
+     * Estimated size of the request about to be sent. Delegates every number to
+     * [ContextBudget] so the estimate, the trim and the compaction trigger can
+     * never disagree about what a request costs.
+     */
     private fun estimateContext(
         history: List<ChatMessage>,
         systemPrompt: String,
         tools: List<com.androidharness.app.llm.ToolSchema> = registry.schemas(),
+        budget: ContextBudget.Budget? = null,
+        providerInputTokens: Int = 0,
+        overflowRejected: Boolean = false,
     ): ContextEstimate {
-        val messagesChars = history.sumOf {
-            it.text.length + it.toolCalls.sumOf { c -> c.argumentsJson.length }
-        }
-        val toolsChars = tools.sumOf {
-            it.description.length + it.parametersJson.toString().length
-        }
+        val accounting = ContextBudget.accounting(history, systemPrompt, tools)
         return ContextEstimate(
-            messagesTokens = messagesChars / 4,
-            systemTokens = systemPrompt.length / 4,
-            toolsTokens = toolsChars / 4,
+            messagesTokens = accounting.messagesTokens,
+            systemTokens = accounting.systemTokens,
+            toolsTokens = accounting.toolsTokens,
+            imagesTokens = accounting.imagesTokens,
+            metaTokens = accounting.overheadTokens,
+            limitTokens = budget?.limitTokens ?: 0,
+            reservedOutputTokens = budget?.reservedOutputTokens ?: 0,
+            safetyMarginTokens = budget?.safetyMarginTokens ?: 0,
+            limitKnown = budget?.limitKnown ?: true,
+            providerInputTokens = providerInputTokens,
+            overflowRejected = overflowRejected,
         )
     }
+
+    /**
+     * The model's own context window, when the in-memory catalog knows it.
+     *
+     * Pure map lookup over the cached models.dev catalog: no network, and null
+     * when the cache is absent (offline, first run) or the model is unknown.
+     * A null here is not a problem, it just means the user's configured window
+     * stands alone as the upper bound.
+     */
+    private fun knownModelLimitTokens(config: ProviderConfig): Long? = runCatching {
+        com.androidharness.app.llm.ModelsDev
+            .entry(com.androidharness.app.llm.ModelsDev.providerKeyFor(config.baseUrl), config.model)
+            ?.contextTokens
+    }.getOrNull()
 
     /**
      * Post-compaction estimate for the context panel (the /compact path runs
@@ -1533,6 +1933,8 @@ class AgentEngine(
         mode: AgentMode,
         fullAccess: Boolean,
         repoMapEnabled: Boolean = true,
+        budget: ContextBudget.Budget? = null,
+        providerInputTokens: Int = 0,
     ): ContextEstimate {
         val caveman = cavemanSettings()
         return estimateContext(
@@ -1547,8 +1949,31 @@ class AgentEngine(
                 intensity = caveman.cavemanIntensity,
                 wenyan = caveman.cavemanWenyan,
             ),
+            budget = budget,
+            providerInputTokens = providerInputTokens,
         )
     }
+
+    /**
+     * Exposes the run's budget arithmetic to the UI, so the context panel can
+     * show the window, the output reservation and the safety margin that a
+     * request is actually measured against rather than only the configured
+     * maximum. Read-only and side-effect free.
+     */
+    fun budgetFor(
+        config: ProviderConfig,
+        maxContextTokens: Int,
+        maxOutputTokens: Int,
+        thinking: ThinkingLevel,
+        safetyMarginPercent: Int = ContextBudget.DEFAULT_SAFETY_MARGIN_PERCENT,
+    ): ContextBudget.Budget = ContextBudget.resolve(
+        configuredLimitTokens = maxContextTokens,
+        knownModelTokens = knownModelLimitTokens(config),
+        maxOutputTokens = maxOutputTokens,
+        thinking = thinking,
+        providerType = config.type,
+        safetyMarginPercent = safetyMarginPercent,
+    )
 
     /**
      * Models pass options in wildly different shapes: string arrays, arrays of
@@ -1766,6 +2191,19 @@ class AgentEngine(
     companion object {
         private val PARALLEL_READ_EXCLUSIONS = setOf("ask_user", "browser_wait_for")
         const val COMPACTION_PREFIX = "[Auto-compacted context: summary of the earlier conversation]"
+
+        /** Output room reserved for a compaction summary request. */
+        const val SUMMARY_OUTPUT_TOKENS = 1_500
+
+        /**
+         * Prefix of a subagent result that stopped at its own budget. The parent
+         * turn checks this to record that a delegation was cut short, and the
+         * model sees the text itself.
+         */
+        const val SUBAGENT_BUDGET_PREFIX = "Subagent budget reached"
+
+        /** Rounds one subagent may take before reporting back. */
+        const val SUBAGENT_MAX_ITERATIONS = SubagentBudget.DEFAULT_MAX_ITERATIONS
 
         /** How many times a silent (reasoning-only, no answer) model is asked to answer. */
         const val MAX_ANSWER_NUDGES = 1

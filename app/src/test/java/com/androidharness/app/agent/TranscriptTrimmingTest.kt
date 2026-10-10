@@ -97,16 +97,19 @@ class TranscriptTrimmingTest {
         return i == sub.size
     }
 
-    // 10_000 context - 1_000 output - 8_192 reserve = 3_232 char budget
+    // 10_000 context - (1_000 output + 8_192 overhead) reserved = 808 token
+    // budget for the history. These fixtures pin the reserve explicitly; the
+    // engine passes what it measured instead of a flat guess.
     private val tokens = 10_000
     private val outputTokens = 1_000
+    private val reserved = outputTokens + 8_192
 
     // ---- 1. valid pair is kept --------------------------------------------
 
     @Test
     fun `assistant tool call and its result are preserved when no trim is needed`() {
         val history = listOf(user("run"), assistantCalls("c1"), tool("c1", "ok"))
-        val out = ContextHygiene.trimHistory(history, tokens, outputTokens)
+        val out = ContextHygiene.trimHistory(history, tokens, reserved)
         assertEquals(history.size, out.size)
         assertTrue(noOrphanToolResult(out))
         assertEquals(listOf("c1"), toolIds(out))
@@ -124,7 +127,7 @@ class TranscriptTrimmingTest {
             tool("c1", "x".repeat(4_000)),
             user("latest"),
         )
-        val out = ContextHygiene.trimHistory(history, tokens, outputTokens)
+        val out = ContextHygiene.trimHistory(history, tokens, reserved)
         assertTrue("result outlived its declaring call: $out", noOrphanToolResult(out))
         assertTrue(toolIds(out).isEmpty())
         assertEquals(user("latest"), out.last())
@@ -138,7 +141,7 @@ class TranscriptTrimmingTest {
         // not invent a result or orphan anything.
         val retained = ContextHygiene.trimHistory(
             listOf(user("x".repeat(5_000)), assistantCalls("c1", "c2"), tool("c1", "r1"), user("latest")),
-            tokens, outputTokens,
+            tokens, reserved,
         )
         assertTrue(noOrphanToolResult(retained))
         assertEquals(listOf("c1"), toolIds(retained))
@@ -146,7 +149,7 @@ class TranscriptTrimmingTest {
         // Call trimmed away: no result may survive.
         val trimmed = ContextHygiene.trimHistory(
             listOf(user("go"), assistantCalls("c1", "c2"), tool("c1", "x".repeat(4_000)), user("latest")),
-            tokens, outputTokens,
+            tokens, reserved,
         )
         assertTrue(noOrphanToolResult(trimmed))
         assertTrue(toolIds(trimmed).isEmpty())
@@ -159,7 +162,7 @@ class TranscriptTrimmingTest {
         // Removing the assistant call must also remove the following results.
         val dropped = ContextHygiene.trimHistory(
             listOf(user("go"), assistantCalls("c1"), tool("c1", "x".repeat(4_000)), user("latest")),
-            tokens, outputTokens,
+            tokens, reserved,
         )
         assertTrue(noOrphanToolResult(dropped))
         assertTrue("group was split: $dropped", toolIds(dropped).isEmpty())
@@ -167,7 +170,7 @@ class TranscriptTrimmingTest {
         // A boundary before the call keeps the call and all its results.
         val kept = ContextHygiene.trimHistory(
             listOf(user("x".repeat(5_000)), assistantCalls("c1"), tool("c1", "r"), user("latest")),
-            tokens, outputTokens,
+            tokens, reserved,
         )
         assertTrue(noOrphanToolResult(kept))
         assertEquals(listOf("c1"), toolIds(kept))
@@ -185,7 +188,7 @@ class TranscriptTrimmingTest {
             assistantCalls("c3"), tool("c3", "c"),
             user("latest"),
         )
-        val out = ContextHygiene.trimHistory(history, tokens, outputTokens)
+        val out = ContextHygiene.trimHistory(history, tokens, reserved)
         assertTrue(noOrphanToolResult(out))
         // Every retained result has its retained call, and no group is partial.
         val callIds = out.filter { it.role == Role.ASSISTANT }.flatMap { it.toolCalls }.map { it.id }.toSet()
@@ -203,7 +206,7 @@ class TranscriptTrimmingTest {
             assistantCalls("big"), tool("big", "z".repeat(8_000)),
             user("latest"),
         )
-        val out = ContextHygiene.trimHistory(history, tokens, outputTokens)
+        val out = ContextHygiene.trimHistory(history, tokens, reserved)
         assertTrue("expected a shorter history", out.size < history.size)
         assertTrue(noOrphanToolResult(out))
     }
@@ -215,7 +218,7 @@ class TranscriptTrimmingTest {
         val history = listOf(
             user("x".repeat(5_000)), assistantText("ack"), user("second"), assistantText("done"), user("latest"),
         )
-        val out = ContextHygiene.trimHistory(history, tokens, outputTokens)
+        val out = ContextHygiene.trimHistory(history, tokens, reserved)
         assertTrue(noOrphanToolResult(out))
         assertEquals(assistantText("ack"), out.first())
         assertEquals(user("latest"), out.last())
@@ -233,7 +236,7 @@ class TranscriptTrimmingTest {
             user("latest"),
         )
         listOf(60_000, 20_000, 10_000, 10_000, 5_000).forEach { context ->
-            current = ContextHygiene.trimHistory(current, context, outputTokens)
+            current = ContextHygiene.trimHistory(current, context, reserved)
             assertTrue("invalid after trimming at $context: $current", noOrphanToolResult(current))
             assertTrue(openAiCompatSerializationValid(current))
         }
@@ -250,7 +253,7 @@ class TranscriptTrimmingTest {
             user("latest"),
         )
         listOf(1, 2_000, 9_000, 10_000, 50_000, 200_000).forEach { context ->
-            val out = ContextHygiene.trimHistory(history, context, outputTokens)
+            val out = ContextHygiene.trimHistory(history, context, reserved)
             assertTrue("invalid at $context: $out", noOrphanToolResult(out))
             assertTrue(isSubsequence(out, history))
         }
@@ -266,7 +269,7 @@ class TranscriptTrimmingTest {
             isError = true,
         )
         val history = listOf(user("x".repeat(5_000)), assistantCalls("c1"), synthetic, user("latest"))
-        val out = ContextHygiene.trimHistory(history, tokens, outputTokens)
+        val out = ContextHygiene.trimHistory(history, tokens, reserved)
         val keptResult = out.first { it.role == Role.TOOL }
         assertEquals("c1", keptResult.toolCallId)
         assertTrue(keptResult.isError)
@@ -282,7 +285,7 @@ class TranscriptTrimmingTest {
             tool("c1", "x".repeat(4_000), isError = true),
             user("latest"),
         )
-        val out = ContextHygiene.trimHistory(history, tokens, outputTokens)
+        val out = ContextHygiene.trimHistory(history, tokens, reserved)
         assertTrue(noOrphanToolResult(out))
         assertTrue(toolIds(out).isEmpty())
     }
@@ -298,7 +301,7 @@ class TranscriptTrimmingTest {
             user("latest"),
         )
         listOf(1, 5_000, 10_000, 40_000).forEach { context ->
-            val out = ContextHygiene.trimHistory(history, context, outputTokens)
+            val out = ContextHygiene.trimHistory(history, context, reserved)
             assertTrue("orphan reached serialization at $context: $out", openAiCompatSerializationValid(out))
         }
     }
@@ -339,7 +342,7 @@ class TranscriptTrimmingTest {
         repeat(500) { iter ->
             val history = randomHistory(rng)
             val contextTokens = 1_000 + rng.nextInt(45_000)
-            val out = ContextHygiene.trimHistory(history, contextTokens, 500)
+            val out = ContextHygiene.trimHistory(history, contextTokens, 500 + 8_192)
             assertTrue("iter $iter: orphan result after trim: $out", noOrphanToolResult(out))
             assertTrue("iter $iter: provider validation failed: $out", openAiCompatSerializationValid(out))
             assertTrue("iter $iter: message order changed", isSubsequence(out, history))

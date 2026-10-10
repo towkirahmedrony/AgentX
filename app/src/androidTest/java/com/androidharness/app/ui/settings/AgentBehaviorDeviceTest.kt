@@ -114,6 +114,9 @@ class AgentBehaviorDeviceTest {
                                         settings = state.value,
                                         onPermissionMode = { state.value = state.value.copy(permissionMode = it) },
                                         onContextLimit = { state.value = state.value.copy(maxContextTokens = it) },
+                                        onContextSafetyMargin = {
+                                            state.value = state.value.copy(contextSafetyMarginPercent = it)
+                                        },
                                         onIterationLimit = { state.value = state.value.copy(maxIterations = it) },
                                         onProjectInstructions = onInstructions,
                                     )

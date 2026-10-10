@@ -33,6 +33,23 @@ fun TaskProgressCard(record: TaskRecord, busy: Boolean, onResume: () -> Unit, on
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             record.reason?.let { CopyIconButton(it) }
+            // The numbers behind the stop: iterations used, active time, retry
+            // count and whether the token figure was reported or estimated. Shown
+            // only when it adds something the reason line does not already say.
+            record.outcomeDetail?.takeIf { it.isNotBlank() && it != record.reason }?.let { detail ->
+                SelectionContainer {
+                    Text(detail, style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            // A ceiling the user asked for that could not be enforced. Reported
+            // rather than silently ignored.
+            record.limitsNotice?.let { notice ->
+                SelectionContainer {
+                    Text(notice, style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error)
+                }
+            }
             if (record.autoContinue && record.autoContinueAttempts >= record.autoContinueLimit.coerceIn(1, 5)) {
                 Text("Auto-continue limit reached. Resume manually to keep going.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -161,7 +178,9 @@ fun TaskSettingsSheet(
                             Switch(clearOlder, { clearOlder = it }, enabled = !state.busy)
                         }
                     } else if (section == 1) {
-                        Text("Optional limits for the whole task, including subagents. Leave blank for unlimited.",
+                        Text("Limits apply to the whole task, including subagents. Leave a field blank for " +
+                            "unlimited: blank is a deliberate choice and is stored as such. A run pauses before " +
+                            "the next request or action once a limit is reached, and can be resumed after raising it.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         OutlinedTextField(tokens, { tokens = it }, label = { Text("Total tokens") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy)
@@ -169,7 +188,10 @@ fun TaskSettingsSheet(
                             modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy)
                         OutlinedTextField(minutes, { minutes = it }, label = { Text("Active time · minutes") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy)
-                        Text("Pauses before the next request or action. In-flight work may exceed a limit. Cost uses catalog prices or estimated rates. Raise a reached limit before resuming.",
+                        Text("Tokens are the provider's reported usage; when a provider reports none, a " +
+                            "conservative estimate is charged so the ceiling still holds. The cost ceiling is " +
+                            "enforced only when a reliable price is known for the model. " +
+                            "In-flight work may exceed a limit.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (record.usedTokens > 0 || record.elapsedMs > 0) Text(
                             "Used: ${record.usedTokens} tokens · $${"%.4f".format(record.usedCost)} · ${record.elapsedMs / 60000} min",

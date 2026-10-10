@@ -53,13 +53,45 @@ object ModelPrices {
         "grok-beta" to Cost(5.0, 15.0, cacheRead = 0.25, cacheWrite = 1.0),
     )
 
-    fun costFor(model: String, providerKey: String? = null): Cost {
-        if (com.androidharness.app.local.LocalModelCatalog.isLocal(model)) return Cost(0.0, 0.0, 0.0, 0.0)
+    /**
+     * Where a rate came from. A monetary ceiling may only be enforced against a
+     * rate the app can stand behind, which is why the provenance travels with
+     * the number instead of being discarded at the call site.
+     */
+    enum class PriceSource {
+        /** On-device model: inference is free, and that is exact. */
+        LOCAL,
+
+        /** models.dev catalog: the provider's own published rate. */
+        CATALOG,
+
+        /** Version-controlled list of published list prices. */
+        TABLE,
+
+        /** Guessed from keywords in the model name. Show it, never enforce it. */
+        HEURISTIC,
+    }
+
+    /** A rate together with its provenance. */
+    data class PricedCost(val cost: Cost, val source: PriceSource) {
+        /**
+         * True when the rate is real enough to pause a run over. A keyword
+         * guess is not: enforcing a cost ceiling against an invented price would
+         * stop a user's work for a number the app made up.
+         */
+        val reliable: Boolean get() = source != PriceSource.HEURISTIC
+    }
+
+    /** The rate for [model], with its provenance. */
+    fun priceFor(model: String, providerKey: String? = null): PricedCost {
+        if (com.androidharness.app.local.LocalModelCatalog.isLocal(model)) {
+            return PricedCost(Cost(0.0, 0.0, 0.0, 0.0), PriceSource.LOCAL)
+        }
         // 1. Check live / cached ModelsDev catalog
         ModelsDev.findCost(providerKey, model)?.let {
             val cr = if (it.input > 0) (it.cacheRead / it.input) else 0.25
             val cw = if (it.input > 0) (it.cacheWrite / it.input) else 1.0
-            return Cost(it.input, it.output, cr, cw)
+            return PricedCost(Cost(it.input, it.output, cr, cw), PriceSource.CATALOG)
         }
 
         // 2. Check offline static table
@@ -68,9 +100,15 @@ object ModelPrices {
             val pNorm = prefix.lowercase().replace(":", "-").replace("/", "-")
             normalized.contains(pNorm) || pNorm.contains(normalized)
         }?.second
-        if (hit != null) return hit
+        if (hit != null) return PricedCost(hit, PriceSource.TABLE)
 
         // 3. Fallback heuristic based on model name keywords
+        return PricedCost(heuristicFor(normalized), PriceSource.HEURISTIC)
+    }
+
+    fun costFor(model: String, providerKey: String? = null): Cost = priceFor(model, providerKey).cost
+
+    private fun heuristicFor(normalized: String): Cost {
         return when {
             normalized.contains("free") ->
                 Cost(input = 0.0, output = 0.0, cacheRead = 0.0, cacheWrite = 0.0)
@@ -85,7 +123,12 @@ object ModelPrices {
         }
     }
 
-    /** Estimated cost in USD based on live catalog prices or standard rates. */
+    /**
+     * Estimated cost in USD for display. May rest on a keyword guess, which is
+     * fine for a label and not fine for enforcement — callers that intend to act
+     * on the number must consult [priceFor] and check
+     * [PricedCost.reliable] first.
+     */
     fun estimate(
         model: String,
         totalInputTokens: Long,

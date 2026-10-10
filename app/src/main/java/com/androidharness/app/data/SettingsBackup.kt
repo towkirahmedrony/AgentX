@@ -36,8 +36,18 @@ object SettingsBackupValidation {
         require(file.providers.map { it.config.id }.distinct().size == file.providers.size) { "Duplicate providers." }
         require(file.searchKeys.keys.all { it in setOf("brave", "tavily") }) { "Invalid credential slot." }
         val s = file.settings
-        require(s.maxContextTokens in 8192..2_000_000 && s.maxOutputTokens in 1..1_000_000 && s.maxIterations in 0..10_000) { "Invalid model limits." }
+        require(s.maxContextTokens in 8192..2_000_000 && s.maxOutputTokens in 1..1_000_000 &&
+            s.maxIterations in 0..com.androidharness.app.agent.ExecutionLimits.MAX_ITERATIONS_ALLOWED) {
+            "Invalid model limits."
+        }
+        require(
+            s.limitsVersion in com.androidharness.app.agent.LimitsMigration.LEGACY..
+                com.androidharness.app.agent.LimitsMigration.CURRENT,
+        ) { "Invalid limits schema version." }
         require(s.webSearchProvider in setOf("keyless", "brave", "tavily")) { "Invalid search provider." }
+        val safetyMarginRange = com.androidharness.app.agent.ContextBudget.MIN_SAFETY_MARGIN_PERCENT..
+            com.androidharness.app.agent.ContextBudget.MAX_SAFETY_MARGIN_PERCENT
+        require(s.contextSafetyMarginPercent in safetyMarginRange) { "Invalid context safety margin." }
         require(s.voiceEngine in setOf("inbuilt", "groq")) { "Invalid voice engine." }
         // Prompt customization: shape and size are enforced here so a hostile or
         // corrupt payload is rejected at import instead of at compose time.

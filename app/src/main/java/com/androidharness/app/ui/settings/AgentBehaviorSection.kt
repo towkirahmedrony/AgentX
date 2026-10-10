@@ -26,7 +26,7 @@ import com.androidharness.app.data.AppSettings
 import com.androidharness.app.ui.chat.components.FullAccessOrange
 import com.androidharness.app.ui.common.formatTokenCount
 
-private enum class BehaviorPicker { PERMISSIONS, CONTEXT, ITERATIONS }
+private enum class BehaviorPicker { PERMISSIONS, CONTEXT, CONTEXT_MARGIN, ITERATIONS }
 
 private data class BehaviorChoice(val key: String, val title: String, val description: String)
 
@@ -44,6 +44,7 @@ internal fun AgentBehaviorSection(
     settings: AppSettings,
     onPermissionMode: (PermissionMode) -> Unit,
     onContextLimit: (Int) -> Unit,
+    onContextSafetyMargin: (Int) -> Unit,
     onIterationLimit: (Int) -> Unit,
     onProjectInstructions: () -> Unit,
 ) {
@@ -77,11 +78,21 @@ internal fun AgentBehaviorSection(
                 )
             }
             BehaviorDivider()
+            SettingsAnchor("Context safety margin") {
+                BehaviorValueRow(
+                    title = "Context safety margin",
+                    value = "${settings.contextSafetyMarginPercent}% of the window",
+                    description = "Held back for token-estimation error and the model overshooting its own reply.",
+                    onClick = { pickerName = BehaviorPicker.CONTEXT_MARGIN.name },
+                )
+            }
+            BehaviorDivider()
             SettingsAnchor("Tool-call iteration limit") {
                 BehaviorValueRow(
                     title = "Tool-call iteration limit",
                     value = if (settings.maxIterations <= 0) "Unlimited" else "${settings.maxIterations} rounds",
-                    description = "How many tool rounds a run can take.",
+                    description = "How many tool rounds a run can take before it stops and asks you to continue. " +
+            "New installations start at ${com.androidharness.app.agent.ExecutionLimits.DEFAULT_ITERATIONS}.",
                     onClick = { pickerName = BehaviorPicker.ITERATIONS.name },
                 )
             }
@@ -120,6 +131,16 @@ internal fun AgentBehaviorSection(
                         BehaviorChoice(it.toString(), "${formatTokenCount(it.toLong())} tokens", "")
                     }
             }
+            BehaviorPicker.CONTEXT_MARGIN -> {
+                title = "Context safety margin"
+                description = "Compaction triggers this much earlier than the window, so an approximate " +
+                    "token estimate plus the model's own output can never push the request over the limit."
+                selected = settings.contextSafetyMarginPercent.toString()
+                val choicesList = (listOf(5, 10, 15, 20) + settings.contextSafetyMarginPercent).distinct().sorted()
+                choices = choicesList.map {
+                    BehaviorChoice(it.toString(), "$it%", "")
+                }
+            }
             BehaviorPicker.ITERATIONS -> {
                 title = "Tool-call iteration limit"
                 description = "A round can include several tool calls. Unlimited keeps going until the task finishes or you stop it."
@@ -156,6 +177,7 @@ internal fun AgentBehaviorSection(
                                         when (picker) {
                                             BehaviorPicker.PERMISSIONS -> onPermissionMode(PermissionMode.valueOf(choice.key))
                                             BehaviorPicker.CONTEXT -> onContextLimit(choice.key.toInt())
+                                            BehaviorPicker.CONTEXT_MARGIN -> onContextSafetyMargin(choice.key.toInt())
                                             BehaviorPicker.ITERATIONS -> onIterationLimit(choice.key.toInt())
                                         }
                                         pickerName = null

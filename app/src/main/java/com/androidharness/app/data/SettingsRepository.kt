@@ -98,11 +98,32 @@ data class AppSettings(
     val promptOverrides: PromptOverrides = PromptOverrides(),
     /** List skill names without their trigger descriptions to shorten the prompt. */
     val compactSkillsCatalog: Boolean = false,
+    /**
+     * Share of the context window held back for token-estimation error and the
+     * model overshooting its own output. See
+     * [com.androidharness.app.agent.ContextBudget].
+     */
+    val contextSafetyMarginPercent: Int = DEFAULT_SAFETY_MARGIN_PERCENT,
+    /**
+     * Schema version of the persisted execution limits. See
+     * [com.androidharness.app.agent.LimitsMigration]: it is what lets a
+     * never-configured limit take a safe default without rewriting the meaning
+     * of a value a user chose on purpose.
+     */
+    val limitsVersion: Int = com.androidharness.app.agent.LimitsMigration.LEGACY,
 ) {
     companion object {
         const val DEFAULT_MAX_CONTEXT = 1_000_000
         const val DEFAULT_MAX_OUTPUT = 32_768
-        const val DEFAULT_MAX_ITERATIONS = 0 // unlimited
+        const val DEFAULT_SAFETY_MARGIN_PERCENT =
+            com.androidharness.app.agent.ContextBudget.DEFAULT_SAFETY_MARGIN_PERCENT
+        /**
+         * Iteration ceiling applied when the setting was never configured.
+         * `0` here would mean "unlimited", which is exactly the ambiguity this
+         * default removes: a user who wants no ceiling selects Unlimited
+         * explicitly, and that choice is preserved as `0` on disk.
+         */
+        const val DEFAULT_MAX_ITERATIONS = com.androidharness.app.agent.ExecutionLimits.DEFAULT_ITERATIONS
         const val VOICE_ENGINE_INBUILT = "inbuilt"
         const val VOICE_ENGINE_GROQ = "groq"
         const val GROQ_MODEL_WHISPER_V3 = "whisper-large-v3"
@@ -153,9 +174,19 @@ class SettingsRepository(private val context: Context) {
         val CAVEMAN_WENYAN = booleanPreferencesKey("caveman_wenyan")
         val PROMPT_OVERRIDES = stringPreferencesKey("prompt_overrides")
         val COMPACT_SKILLS_CATALOG = booleanPreferencesKey("compact_skills_catalog")
+        val CONTEXT_SAFETY_MARGIN = intPreferencesKey("context_safety_margin_percent")
+        val LIMITS_SCHEMA_VERSION = intPreferencesKey("limits_schema_version")
     }
 
     val settings: Flow<AppSettings> = context.settingsStore.data.map { prefs ->
+        // Resolved on every read rather than written once at startup: the
+        // result depends only on what is on disk, so it survives anything and
+        // cannot be lost by a process death between migrate and save.
+        val limits = com.androidharness.app.agent.LimitsMigration.migrate(
+            storedVersion = prefs[Keys.LIMITS_SCHEMA_VERSION]
+                ?: com.androidharness.app.agent.LimitsMigration.LEGACY,
+            storedIterations = prefs[Keys.MAX_ITERATIONS],
+        )
         AppSettings(
             permissionMode = prefs[Keys.PERMISSION_MODE]
                 ?.let { runCatching { PermissionMode.valueOf(it) }.getOrNull() }
@@ -171,7 +202,8 @@ class SettingsRepository(private val context: Context) {
                 ?: ThinkingLevel.OFF,
             maxContextTokens = prefs[Keys.MAX_CONTEXT] ?: AppSettings.DEFAULT_MAX_CONTEXT,
             maxOutputTokens = prefs[Keys.MAX_OUTPUT] ?: AppSettings.DEFAULT_MAX_OUTPUT,
-            maxIterations = prefs[Keys.MAX_ITERATIONS] ?: AppSettings.DEFAULT_MAX_ITERATIONS,
+            maxIterations = limits.iterations,
+            limitsVersion = limits.version,
             keepAlive = prefs[Keys.KEEP_ALIVE] ?: true,
             pinnedSessions = prefs[Keys.PINNED] ?: emptySet(),
             archivedSessions = prefs[Keys.ARCHIVED] ?: emptySet(),
@@ -207,6 +239,11 @@ class SettingsRepository(private val context: Context) {
             cavemanWenyan = prefs[Keys.CAVEMAN_WENYAN] ?: false,
             promptOverrides = PromptOverridesJson.decode(prefs[Keys.PROMPT_OVERRIDES]).sanitized(),
             compactSkillsCatalog = prefs[Keys.COMPACT_SKILLS_CATALOG] ?: false,
+            contextSafetyMarginPercent = (prefs[Keys.CONTEXT_SAFETY_MARGIN] ?: AppSettings.DEFAULT_SAFETY_MARGIN_PERCENT)
+                .coerceIn(
+                    com.androidharness.app.agent.ContextBudget.MIN_SAFETY_MARGIN_PERCENT,
+                    com.androidharness.app.agent.ContextBudget.MAX_SAFETY_MARGIN_PERCENT,
+                ),
         )
     }
 
@@ -218,6 +255,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.MAX_CONTEXT] = s.maxContextTokens
             p[Keys.MAX_OUTPUT] = s.maxOutputTokens
             p[Keys.MAX_ITERATIONS] = s.maxIterations
+            p[Keys.LIMITS_SCHEMA_VERSION] = com.androidharness.app.agent.LimitsMigration.CURRENT
             p[Keys.KEEP_ALIVE] = s.keepAlive
             p[Keys.SUBAGENT_FULL_ACCESS] = s.subagentFullAccess
             p[Keys.DISABLED_SKILLS] = s.disabledSkills
@@ -232,6 +270,10 @@ class SettingsRepository(private val context: Context) {
             p[Keys.CAVEMAN_WENYAN] = s.cavemanWenyan
             p[Keys.PLANNING_MODELS_ENABLED] = s.planningModelsEnabled
             p[Keys.COMPACT_SKILLS_CATALOG] = s.compactSkillsCatalog
+            p[Keys.CONTEXT_SAFETY_MARGIN] = s.contextSafetyMarginPercent.coerceIn(
+                com.androidharness.app.agent.ContextBudget.MIN_SAFETY_MARGIN_PERCENT,
+                com.androidharness.app.agent.ContextBudget.MAX_SAFETY_MARGIN_PERCENT,
+            )
             val restoredPrompts = s.promptOverrides.sanitized()
             if (restoredPrompts.isEmpty) p.remove(Keys.PROMPT_OVERRIDES)
             else p[Keys.PROMPT_OVERRIDES] = PromptOverridesJson.encode(restoredPrompts)
@@ -367,8 +409,15 @@ class SettingsRepository(private val context: Context) {
         context.settingsStore.edit { it[Keys.MAX_OUTPUT] = tokens }
     }
 
+    /**
+     * Persisting a value through the UI always marks the limits schema current,
+     * so an explicit choice — including Unlimited — is never re-migrated.
+     */
     suspend fun setMaxIterations(iterations: Int) {
-        context.settingsStore.edit { it[Keys.MAX_ITERATIONS] = iterations }
+        context.settingsStore.edit {
+            it[Keys.MAX_ITERATIONS] = iterations
+            it[Keys.LIMITS_SCHEMA_VERSION] = com.androidharness.app.agent.LimitsMigration.CURRENT
+        }
     }
 
     suspend fun setKeepAlive(enabled: Boolean) {
@@ -448,6 +497,20 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setCompactSkillsCatalog(enabled: Boolean) {
         context.settingsStore.edit { it[Keys.COMPACT_SKILLS_CATALOG] = enabled }
+    }
+
+    /**
+     * Share of the context window held back for estimation error. Clamped to the
+     * documented range so a corrupt or hostile value can never drive the usable
+     * input budget to zero or beyond the window.
+     */
+    suspend fun setContextSafetyMarginPercent(percent: Int) {
+        context.settingsStore.edit {
+            it[Keys.CONTEXT_SAFETY_MARGIN] = percent.coerceIn(
+                com.androidharness.app.agent.ContextBudget.MIN_SAFETY_MARGIN_PERCENT,
+                com.androidharness.app.agent.ContextBudget.MAX_SAFETY_MARGIN_PERCENT,
+            )
+        }
     }
 
     /** Clears every prompt and tool-description override, and turns the compact catalog back off. */

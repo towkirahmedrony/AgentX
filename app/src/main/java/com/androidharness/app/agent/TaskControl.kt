@@ -47,6 +47,20 @@ data class TaskRecord(
     val autoContinue: Boolean = false,
     val autoContinueLimit: Int = 3,
     val autoContinueAttempts: Int = 0,
+    /**
+     * How the last run ended, as a [StopKind] name, and the numbers behind it.
+     * Null while a run is in flight or before the first stop, so "no outcome
+     * recorded" is never confused with a particular ending.
+     */
+    val outcome: String? = null,
+    val outcomeDetail: String? = null,
+    /**
+     * A limit the user configured that could NOT be enforced (today: a cost
+     * ceiling with no reliable price for the model). Informational: it is not a
+     * stop reason, but silently ignoring a ceiling the user asked for would be
+     * worse than continuing without it.
+     */
+    val limitsNotice: String? = null,
 ) {
     val resumable: Boolean get() = status == "running" || status == "paused" || status == "interrupted"
 }
@@ -84,7 +98,7 @@ class TaskControlStore(private val directory: File) {
     }
 }
 
-class TaskPaused(val reasonText: String) : RuntimeException(reasonText)
+class TaskPaused(val reasonText: String, val kind: StopKind) : RuntimeException(reasonText)
 
 /** Shared by the parent, compaction, and every subagent through coroutine context. */
 class TaskBudget(
@@ -96,20 +110,82 @@ class TaskBudget(
 ) : AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<TaskBudget>
     private val started = clock()
+
+    /** Requests the provider reported usage for. */
+    private var reportedRequests = 0
+
+    /** Tokens charged because a request came back with no usage at all. */
+    private var unsourcedTokens = 0L
+
+    /**
+     * Why a configured cost ceiling could not be enforced, if that happened.
+     * Non-null disables cost enforcement: a monetary ceiling must never be
+     * decided by a price the app guessed from the model's name.
+     */
+    private var costAdvice: String? = null
+
     @Synchronized fun add(input: Int, output: Int, dollars: Double?) {
         tokens += input.toLong() + output
+        reportedRequests++
         cost += dollars ?: 0.0
     }
+
+    /**
+     * Charges one request the provider never reported usage for.
+     *
+     * Without this a token ceiling is unenforceable against a provider that
+     * omits usage, because an unreported request would contribute zero and the
+     * ceiling would never be reached — an unknown treated as a measurement of
+     * nothing. The caller supplies a documented conservative figure instead.
+     */
+    @Synchronized fun chargeUnsourced(conservativeTokens: Long) {
+        val charge = conservativeTokens.coerceAtLeast(0L)
+        tokens += charge
+        unsourcedTokens += charge
+    }
+
+    /** Records that a costed request had no reliable price. */
+    @Synchronized fun markCostUnavailable(reason: String) {
+        if (costAdvice == null) costAdvice = reason
+    }
+
     @Synchronized fun usage(): Triple<Long, Double, Long> = Triple(tokens, cost, priorMs + clock() - started)
+
+    /** Active time of this run, including time consumed before a resume. */
+    @Synchronized fun elapsedMs(): Long = priorMs + clock() - started
+
+    /**
+     * Active time left before the configured time limit, or null when the user
+     * set no time limit. Never negative: a spent budget reports zero rather than
+     * a negative remainder.
+     */
+    @Synchronized fun remainingTimeMs(): Long? =
+        if (limits.minutes <= 0) null else (limits.minutes * 60_000 - elapsedMs()).coerceAtLeast(0L)
+
+    /** Whether the accumulated token figure is reported, estimated, or both. */
+    @Synchronized fun usageStatus(): UsageStatus = when {
+        reportedRequests > 0 && unsourcedTokens > 0 -> UsageStatus.MIXED
+        unsourcedTokens > 0 -> UsageStatus.ESTIMATED
+        reportedRequests > 0 -> UsageStatus.ACTUAL
+        else -> UsageStatus.UNKNOWN
+    }
+
+    @Synchronized fun costAdvice(): String? = costAdvice
+
     @Synchronized fun check() {
         val u = usage()
-        val reason = when {
-            limits.tokens > 0 && u.first >= limits.tokens -> "Token limit reached"
-            limits.cost > 0 && u.second >= limits.cost -> "Estimated cost limit reached"
-            limits.minutes > 0 && u.third >= limits.minutes * 60000 -> "Time limit reached"
+        val reached: Pair<String, StopKind>? = when {
+            limits.tokens > 0 && u.first >= limits.tokens ->
+                "Token limit reached (${RunStop.usageLabel(usageStatus())} usage)" to StopKind.TOKEN_LIMIT
+            // Only enforced against prices the app can stand behind; a guessed
+            // price must never pause a run.
+            limits.cost > 0 && costAdvice == null && u.second >= limits.cost ->
+                "Estimated cost limit reached" to StopKind.COST_LIMIT
+            limits.minutes > 0 && u.third >= limits.minutes * 60000 ->
+                "Time limit reached" to StopKind.TIME_LIMIT
             else -> null
         }
-        if (reason != null) throw TaskPaused(reason)
+        if (reached != null) throw TaskPaused(reached.first, reached.second)
     }
 }
 

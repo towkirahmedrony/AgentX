@@ -332,6 +332,10 @@ class RunManager(
             var completed = false
             var finishedNormally = false
             var recoverableInterruption = false
+            // Structured end-of-run facts, persisted so the paused card can
+            // explain why the run stopped and on which numbers.
+            var stop: RunStop? = null
+            var pausedStop: TaskPaused? = null
             try {
                 startSignal.await()
                 kotlin.coroutines.coroutineContext.ensureActive()
@@ -369,6 +373,10 @@ class RunManager(
                     }
                 }
                 val repoMapOn = runCatching { settings.settings.first().repoMapEnabled }.getOrDefault(true)
+                // Read live like the repo map: raising the safety margin mid-run
+                // applies on the next run without needing a restart.
+                val safetyMargin = runCatching { settings.settings.first().contextSafetyMarginPercent }
+                    .getOrDefault(com.androidharness.app.data.AppSettings.DEFAULT_SAFETY_MARGIN_PERCENT)
                 engine.run(
                     sessionId = sid,
                     turnId = turnId,
@@ -393,19 +401,40 @@ class RunManager(
                     resolveSubagentModel = modelResolver::resolve,
                     repoMapEnabled = repoMapOn,
                     pinnedInstructions = record.pins,
+                    contextSafetyMarginPercent = safetyMargin,
                     durableEvent = { event ->
                         if (event is AgentEvent.Finished) finishedNormally = event.reason == null
                         if (event is AgentEvent.Error) recoverableInterruption = event.recoverable
+                        if (event is AgentEvent.Stopped) stop = event.stop
+                        if (event is AgentEvent.RequestSettled && !event.usageReported) {
+                            // The provider reported nothing for this request. Charge
+                            // the documented conservative figure instead of zero, so
+                            // a token ceiling still means something here.
+                            budget.chargeUnsourced(event.conservativeTokens.toLong())
+                        }
                         if (event is AgentEvent.Usage) {
-                            val price = if (event.providerName.startsWith("ChatGPT · ")) null else com.androidharness.app.llm.ModelPrices.estimate(
-                                model = event.model, totalInputTokens = event.inputTokens.toLong(),
-                                outputTokens = event.outputTokens.toLong(), cachedTokens = event.cachedInputTokens.toLong(),
-                                cacheWriteTokens = event.cacheWriteTokens.toLong(),
-                                providerKey = com.androidharness.app.llm.ModelsDev.providerKeyFor(runConfig.baseUrl),
-                            )
+                            // A monetary ceiling may only be enforced against a rate
+                            // the app can stand behind. The keyword heuristic still
+                            // drives the cost *display*, but it never pauses a run.
+                            val priced = if (event.providerName.startsWith("ChatGPT · ")) null else
+                                com.androidharness.app.llm.ModelPrices.priceFor(
+                                    model = event.model,
+                                    providerKey = com.androidharness.app.llm.ModelsDev.providerKeyFor(runConfig.baseUrl),
+                                )
+                            val price = priced?.takeIf { it.reliable }?.let {
+                                com.androidharness.app.llm.ModelPrices.estimate(
+                                    model = event.model, totalInputTokens = event.inputTokens.toLong(),
+                                    outputTokens = event.outputTokens.toLong(), cachedTokens = event.cachedInputTokens.toLong(),
+                                    cacheWriteTokens = event.cacheWriteTokens.toLong(),
+                                    providerKey = com.androidharness.app.llm.ModelsDev.providerKeyFor(runConfig.baseUrl),
+                                )
+                            }
                             budget.add(event.inputTokens, event.outputTokens, price)
                             if (record.limits.cost > 0 && price == null) {
-                                controls.update(sid) { it.copy(reason = "Cost unavailable for this model") }
+                                budget.markCostUnavailable(
+                                    "Cost ceiling not enforced: no reliable price for ${event.model}." +
+                                        " Usage is still being counted.",
+                                )
                             }
                         }
                         handleEvent(sid, event)
@@ -417,6 +446,7 @@ class RunManager(
                 ).collect { }
                 completed = finishedNormally && live.value.error == null
             } catch (paused: TaskPaused) {
+                pausedStop = paused
                 controls.update(sid) { it.copy(reason = paused.reasonText) }
             } catch (ce: CancellationException) {
                 live.update { it.copy(cancelled = true) }
@@ -429,9 +459,27 @@ class RunManager(
                 promptJob?.cancel()
                 val usage = budget.usage()
                 val cancelled = live.value.cancelled
-                runCatching { controls.update(sid) { it.copy(status = if (completed || cancelled) "idle" else "paused",
-                    reason = if (completed || cancelled) null else it.reason ?: live.value.error ?: "Task interrupted",
-                    usedTokens = usage.first, usedCost = usage.second, elapsedMs = usage.third) } }
+                // One structured ending, so a budget stop is never reported as a
+                // provider failure (or the reverse) and every field the user sees
+                // comes from a single decision point.
+                val stopKind = when {
+                    cancelled -> StopKind.CANCELLED
+                    completed -> StopKind.SUCCESS
+                    stop != null -> stop!!.kind
+                    pausedStop != null -> pausedStop!!.kind
+                    live.value.error != null -> StopKind.PROVIDER_ERROR
+                    else -> StopKind.INTERRUPTED
+                }
+                val settled = stopKind == StopKind.SUCCESS || stopKind == StopKind.CANCELLED
+                runCatching { controls.update(sid) { it.copy(
+                    status = if (settled) "idle" else "paused",
+                    reason = if (settled) null else stop?.message ?: pausedStop?.reasonText
+                        ?: it.reason ?: live.value.error ?: "Task interrupted",
+                    outcome = stopKind.name,
+                    outcomeDetail = stop?.describe() ?: pausedStop?.reasonText,
+                    limitsNotice = budget.costAdvice(),
+                    usedTokens = usage.first, usedCost = usage.second, elapsedMs = usage.third,
+                ) } }
                     .onFailure { failure -> live.update { it.copy(error = "Could not save progress: ${failure.message}") } }
                 RuntimeNotifier.setSessionPrompts(sid, emptyList())
                 val planText = if (mode == AgentMode.PLAN && completed) {
@@ -684,6 +732,12 @@ class RunManager(
             }
 
             is AgentEvent.Error -> live.update { it.copy(error = event.message) }
+
+            // A budget stop is not a failure: it is surfaced through the paused
+            // task card (status + reason), not as a chat error.
+            is AgentEvent.Stopped -> Unit
+
+            is AgentEvent.RequestSettled -> Unit
 
             is AgentEvent.SubagentStep -> live.update { st ->
                 st.copy(

@@ -15,6 +15,12 @@ object ContextHygiene {
 
     const val STALE_TOOL_CHARS = 4_000
 
+    /** Tool-result caps tried, in order, when a request still will not fit. */
+    private val EMERGENCY_TOOL_CAPS = intArrayOf(4_000, 1_000, 200)
+
+    /** Most recent messages compaction keeps verbatim next to the summary. */
+    const val COMPACT_KEEP_RECENT = 8
+
     /**
      * Maximum number of recent images to keep in model context across the
      * whole conversation (keeps only the 2 most recent images in context,
@@ -105,9 +111,26 @@ object ContextHygiene {
     }
 
     /**
-     * Trim old history to a character budget while keeping the retained suffix
-     * a valid provider conversation. Unlike a plain `drop(n)`, this never
-     * splits an assistant tool-call message from its results:
+     * Estimated tokens one message occupies in the model-facing request. Uses
+     * the same accounting as [ContextBudget] so the coarse trim and the budget
+     * that triggers compaction can never disagree about the size of the same
+     * history. Images contribute their modelled cost, never their base64
+     * length: a 1 MB payload is ~1.4 M characters but a few thousand tokens.
+     */
+    fun accountedTokens(message: ChatMessage): Int =
+        ContextBudget.estimateTextTokens(message.text) +
+            message.toolCalls.sumOf { ContextBudget.estimateToolCallTokens(it) } +
+            (message.toolCallId?.let { ContextBudget.estimateTextTokens(it) } ?: 0) +
+            message.imageData.sumOf { ContextBudget.estimateImageTokens(it) } +
+            ContextBudget.MESSAGE_FRAMING_TOKENS
+
+    /** Estimated tokens a whole history occupies, same accounting as above. */
+    fun totalTokens(history: List<ChatMessage>): Int = history.sumOf { accountedTokens(it) }
+
+    /**
+     * Trim old history to a token budget while keeping the retained suffix a
+     * valid provider conversation. Unlike a plain `drop(n)`, this never splits
+     * an assistant tool-call message from its results:
      *
      *  - removing an assistant message that declares tool calls also removes
      *    the tool results that immediately follow it;
@@ -119,43 +142,125 @@ object ContextHygiene {
      * Auto-compaction still owns the real context budget; this is the coarse
      * first pass and may return an over-budget suffix rather than an invalid
      * one when the newest user turn alone exceeds the budget.
+     *
+     * @param reservedTokens everything the request has already spent besides the
+     *   history: the provider's output room, the safety margin, the system
+     *   prompt, the tool schemas and the request framing. There is deliberately
+     *   no flat default — a fixed guess for components the caller can measure
+     *   is the defect this replaced. Callers that cannot measure it must say so
+     *   by passing the value explicitly.
      */
     fun trimHistory(
         history: List<ChatMessage>,
         maxContextTokens: Int,
-        maxOutputTokens: Int,
+        reservedTokens: Int,
+    ): List<ChatMessage> = trimToBudget(history, maxContextTokens - reservedTokens)
+
+    /**
+     * [trimHistory] against an already-computed token budget, for callers that
+     * hold the budget directly (the summarizer request, for one, only has to
+     * fit its own output room and framing).
+     */
+    fun trimToBudget(
+        history: List<ChatMessage>,
+        budgetTokens: Int,
     ): List<ChatMessage> {
-        // reserve space for system prompt, tool schemas and the model's reply
-        val budgetChars = (maxContextTokens - maxOutputTokens - 8_192) * 4
         // Never trim past the most recent user turn: the model always needs the
         // request it is answering. Messages before it are fair game.
         val lastUser = history.indexOfLast { it.role == Role.USER }
         val floor = if (lastUser >= 0) lastUser else 0
-        if (budgetChars <= 0) {
-            val tail = history.drop(floor)
-            return sanitizeToolPairing(tail.ifEmpty { history.takeLast(1) })
+        // A leading compaction summary is the folded memory of everything that
+        // came before this point: dropping it would silently discard the only
+        // record of the run's goal and decisions, so it is never trimmed away.
+        val protectedPrefix = if (history.firstOrNull()?.let {
+                it.role == Role.SYSTEM && it.text.startsWith(AgentEngine.COMPACTION_PREFIX)
+            } == true
+        ) 1 else 0
+        if (budgetTokens <= 0) {
+            val tail = history.drop(maxOf(floor, protectedPrefix))
+            val combined = history.take(protectedPrefix) + tail
+            return sanitizeToolPairing(combined.ifEmpty { history.takeLast(1) })
         }
-        var total = history.sumOf { it.text.length }
-        if (total <= budgetChars) return sanitizeToolPairing(history)
+        var total = totalTokens(history)
+        if (total <= budgetTokens) return sanitizeToolPairing(history)
 
-        var cut = 0
-        while (total > budgetChars && cut < floor) {
+        var cut = protectedPrefix
+        while (total > budgetTokens && cut < floor) {
             val removed = history[cut++]
-            total -= removed.text.length
+            total -= accountedTokens(removed)
             // Removing an assistant tool call orphans its results; drop them
             // too so the call/result pair is never split.
             if (removed.role == Role.ASSISTANT && removed.toolCalls.isNotEmpty()) {
                 while (cut < floor && history[cut].role == Role.TOOL) {
-                    total -= history[cut++].text.length
+                    total -= accountedTokens(history[cut++])
                 }
             }
         }
         // Defensive: a malformed or boundary-orphaned result can still sit at
         // the cut, so drop any leading result that has no retained call.
         while (cut < floor && history[cut].role == Role.TOOL) {
-            total -= history[cut++].text.length
+            total -= accountedTokens(history[cut++])
         }
-        return sanitizeToolPairing(history.drop(cut))
+        return sanitizeToolPairing(history.take(protectedPrefix) + history.drop(cut))
+    }
+
+    /**
+     * Chooses what compaction summarizes and what it keeps verbatim.
+     *
+     * Two rules, both required for a usable result:
+     *
+     *  - the kept slice never begins on a tool result, because its declaring
+     *    assistant call would be summarized away and the pair split;
+     *  - the most recent user message always lands in the kept slice, so the
+     *    request being answered survives compaction verbatim and the model can
+     *    still act on it.
+     *
+     * Pure and allocation-light: unit-testable without a provider.
+     */
+    fun compactionSplit(
+        history: List<ChatMessage>,
+        keepRecent: Int = COMPACT_KEEP_RECENT,
+    ): Pair<List<ChatMessage>, List<ChatMessage>> {
+        if (history.isEmpty()) return emptyList<ChatMessage>() to emptyList()
+        val lastUser = history.indexOfLast { it.role == Role.USER }
+        var start = maxOf(history.size - keepRecent, if (lastUser >= 0) lastUser else 0)
+        // Walk back off any leading tool result to its declaring call.
+        while (start > 0 && history[start].role == Role.TOOL) start--
+        if (start <= 0) return emptyList<ChatMessage>() to history
+        return history.subList(0, start) to history.subList(start, history.size)
+    }
+
+    /**
+     * Last resort for a request that still will not fit after compaction.
+     *
+     * Drops everything before the newest user turn, then truncates tool results
+     * with progressively harsher caps. A run that cannot fit even then has a
+     * single oversized turn (or a window too small for its own reservations)
+     * and must fail with an actionable message rather than retry the same
+     * impossible request — so this returns its best effort and lets the caller
+     * decide, it never loops.
+     */
+    fun emergencyTrim(history: List<ChatMessage>, budgetTokens: Int): List<ChatMessage> {
+        val lastUser = history.indexOfLast { it.role == Role.USER }
+        val floor = if (lastUser >= 0) lastUser else 0
+        // Same protection as [trimToBudget]: the folded summary of everything
+        // already compacted is the run's memory and is never thrown away to
+        // make room.
+        val protectedPrefix = if (history.firstOrNull()?.let {
+                it.role == Role.SYSTEM && it.text.startsWith(AgentEngine.COMPACTION_PREFIX)
+            } == true
+        ) 1 else 0
+        // The newest user turn is always kept, so the slice starts at whichever
+        // of the two floors comes later.
+        val split = maxOf(floor, protectedPrefix)
+        var out = sanitizeToolPairing(history.take(protectedPrefix) + history.drop(split))
+        for (cap in EMERGENCY_TOOL_CAPS) {
+            if (totalTokens(out) <= budgetTokens) return out
+            out = out.map { m ->
+                if (m.role != Role.TOOL || m.text.length <= cap) m else m.copy(text = truncate(m.text, cap))
+            }
+        }
+        return out
     }
 
     /**

@@ -97,7 +97,9 @@ data class ChatUiState(
     val fileAttachments: List<FileAttachment> = emptyList(),
     val maxContextTokens: Int = 1_000_000,
     val maxOutputTokens: Int = 32_768,
-    val maxIterations: Int = 0,
+    /** Share of the window held back for estimation error; see ContextBudget. */
+    val contextSafetyMarginPercent: Int = com.androidharness.app.agent.ContextBudget.DEFAULT_SAFETY_MARGIN_PERCENT,
+    val maxIterations: Int = com.androidharness.app.agent.ExecutionLimits.DEFAULT_ITERATIONS,
     val providers: List<ProviderConfig> = emptyList(),
     val activeProviderId: String? = null,
     val estimate: ContextEstimate? = null,
@@ -303,6 +305,7 @@ class ChatViewModel(
                             thinkingLevel = settings.thinkingLevel,
                             maxContextTokens = settings.maxContextTokens,
                             maxOutputTokens = settings.maxOutputTokens,
+                            contextSafetyMarginPercent = settings.contextSafetyMarginPercent,
                             maxIterations = settings.maxIterations,
                             providers = providers,
                             activeProviderId = settings.activeProviderId
@@ -498,6 +501,8 @@ class ChatViewModel(
                         c.workspace.currentOnce(),
                         _state.value.mode,
                         _state.value.permissionMode == PermissionMode.FULL_ACCESS,
+                        budget = budgetForActiveProvider(),
+                        providerInputTokens = sess.lastInputTokens,
                     )
                     _state.update { it.copy(estimate = fresh) }
                 }
@@ -1450,6 +1455,23 @@ class ChatViewModel(
     // Misc
     // ------------------------------------------------------------------
 
+    /**
+     * The budget the next run would be measured against, including the model's
+     * own window when the catalog knows it. Keeps the engine as the single
+     * place that resolves a window, so the panel and the run cannot disagree.
+     */
+    private fun budgetForActiveProvider(): com.androidharness.app.agent.ContextBudget.Budget? {
+        val provider = _state.value.activeProvider ?: return null
+        val st = _state.value
+        return c.engine.budgetFor(
+            provider,
+            st.maxContextTokens,
+            st.maxOutputTokens,
+            st.thinkingLevel,
+            st.contextSafetyMarginPercent,
+        )
+    }
+
     private suspend fun refreshCheckpoints(sessionId: String): Set<String> =
         runCatching { c.checkpoints.turnsWithCheckpoints(sessionId) }.getOrDefault(emptySet())
 
@@ -1504,6 +1526,7 @@ class ChatViewModel(
                     c.workspace.currentOnce(),
                     _state.value.mode,
                     _state.value.permissionMode == PermissionMode.FULL_ACCESS,
+                    budget = budgetForActiveProvider(),
                 )
                 _state.update { it.copy(estimate = fresh) }
             }

@@ -31,6 +31,49 @@ enum class ProviderType(val label: String, val defaultBaseUrl: String) {
 }
 
 /**
+ * Canonical endpoints of the curated cloud providers.
+ *
+ * A saved provider whose (type, base URL) matches one of these is a known
+ * hosted service and keeps the fast-fail streaming budget. Anything else, a
+ * custom OpenAI-compatible endpoint, a local server (Ollama, LM Studio) or a
+ * reverse proxy (ngrok, Colab), is self-hosted and gets the slow-model budget.
+ *
+ * This is the single source of truth: the provider picker builds its brand list
+ * from these constants and the streaming timeout policy classifies saved
+ * configs against them, so the two can never disagree. Classification is an
+ * exact (type, base URL) match, never a URL substring guess.
+ */
+object HostedProviderEndpoints {
+    const val OPENROUTER = "https://openrouter.ai/api/v1"
+    const val ANTHROPIC = "https://api.anthropic.com"
+    const val GEMINI = "https://generativelanguage.googleapis.com/v1beta"
+    const val OPENAI = "https://api.openai.com/v1"
+    const val GROQ = "https://api.groq.com/openai/v1"
+    const val DEEPSEEK = "https://api.deepseek.com/v1"
+    const val TOGETHER = "https://api.together.xyz/v1"
+    const val MISTRAL = "https://api.mistral.ai/v1"
+
+    /** Both wire and address must match, so a proxy reusing a hosted host stays custom. */
+    private val PAIRS: Set<Pair<ProviderType, String>> = setOf(
+        ProviderType.OPENAI_COMPAT to OPENROUTER,
+        ProviderType.ANTHROPIC to ANTHROPIC,
+        ProviderType.GEMINI to GEMINI,
+        ProviderType.OPENAI_COMPAT to OPENAI,
+        ProviderType.OPENAI_RESPONSES to OPENAI,
+        ProviderType.OPENAI_COMPAT to GROQ,
+        ProviderType.OPENAI_COMPAT to DEEPSEEK,
+        ProviderType.OPENAI_COMPAT to TOGETHER,
+        ProviderType.OPENAI_COMPAT to MISTRAL,
+    )
+
+    /** Exact configuration match; surrounding whitespace, case and a trailing slash are ignored. */
+    fun isHosted(type: ProviderType, baseUrl: String): Boolean =
+        (type to normalize(baseUrl)) in PAIRS
+
+    private fun normalize(baseUrl: String): String = baseUrl.trim().trimEnd('/').lowercase()
+}
+
+/**
  * Local servers (Ollama, LM Studio, llama.cpp) need no key, and an empty
  * `Authorization` header makes some of them reject the request. A key the user
  * typed still rides out, so a reverse proxy in front of one keeps working.

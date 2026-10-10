@@ -1,6 +1,7 @@
 package com.androidharness.app.agent
 
 import com.androidharness.app.core.ToolCallData
+import com.androidharness.app.llm.HarnessProvider
 import com.androidharness.app.llm.ProviderConfig
 import com.androidharness.app.llm.ProviderType
 import com.androidharness.app.llm.StreamEvent
@@ -26,9 +27,18 @@ import org.junit.Test
  */
 class StreamTimeoutTest {
 
-    private fun config(first: Int = 0, idle: Int = 0) = ProviderConfig(
-        id = "p", name = "Provider", type = ProviderType.OPENAI_COMPAT,
-        baseUrl = "https://example.test/v1", model = "m",
+    // A curated cloud brand versus a custom reverse-proxy endpoint (ngrok/Colab).
+    private val hostedBase = "https://api.openai.com/v1"
+    private val selfHostedBase = "https://r3-abcd.ngrok-free.app/v1"
+
+    private fun config(
+        first: Int = 0,
+        idle: Int = 0,
+        baseUrl: String = hostedBase,
+        id: String = "p",
+        type: ProviderType = ProviderType.OPENAI_COMPAT,
+    ) = ProviderConfig(
+        id = id, name = "Provider", type = type, baseUrl = baseUrl, model = "m",
         firstTokenTimeoutSec = first, idleTimeoutSec = idle,
     )
 
@@ -221,13 +231,96 @@ class StreamTimeoutTest {
         assertEquals(1, attempts)
     }
 
-    // ---- timeout policy: defaults and validation ----------------------------
+    // ---- timeout policy: classification, defaults and validation -------------
+
+    @Test
+    fun `new self-hosted endpoint with unset timeouts gets the slow-model budget`() {
+        val t = StreamTimeoutPolicy.resolve(config(baseUrl = selfHostedBase), onDeviceModel = false)
+        assertEquals(600_000, t.firstTokenMs)
+        assertEquals(120_000, t.idleMs)
+    }
+
+    @Test
+    fun `existing custom endpoint with stored zero timeouts gets the self-hosted budget`() {
+        // A stored 0 keeps its "inherit the category default" meaning; the
+        // category default for a custom endpoint is the slow-model one.
+        val t = StreamTimeoutPolicy.resolve(config(first = 0, idle = 0, baseUrl = selfHostedBase), onDeviceModel = false)
+        assertEquals(600_000, t.firstTokenMs)
+        assertEquals(120_000, t.idleMs)
+    }
+
+    @Test
+    fun `restored legacy configuration without timeout fields resolves self-hosted`() {
+        // A backup written before the fields existed decodes both to 0, and the
+        // custom endpoint must still receive the slow-model budget.
+        val legacy = Json { ignoreUnknownKeys = true }.decodeFromString(
+            ProviderConfig.serializer(),
+            """{"id":"x","name":"Colab Devstral","type":"OPENAI_COMPAT","baseUrl":"$selfHostedBase","model":"devstral-small-2-24b"}""",
+        )
+        assertEquals(0, legacy.firstTokenTimeoutSec)
+        assertEquals(0, legacy.idleTimeoutSec)
+        val t = StreamTimeoutPolicy.resolve(legacy, onDeviceModel = false)
+        assertEquals(600_000, t.firstTokenMs)
+        assertEquals(120_000, t.idleMs)
+    }
+
+    @Test
+    fun `self-hosted endpoints never fall back to the fixed 90s initial window`() {
+        val t = StreamTimeoutPolicy.resolve(config(baseUrl = selfHostedBase), onDeviceModel = false)
+        assertTrue("expected > 90s, got ${t.firstTokenMs}", t.firstTokenMs > 90_000)
+        assertEquals(StreamTimeoutPolicy.SELF_HOSTED_FIRST_TOKEN_SEC * 1000L, t.firstTokenMs)
+        assertEquals(StreamTimeoutPolicy.SELF_HOSTED_IDLE_SEC * 1000L, t.idleMs)
+    }
+
+    @Test
+    fun `explicit custom timeout values are respected`() {
+        val t = StreamTimeoutPolicy.resolve(config(first = 45, idle = 90, baseUrl = selfHostedBase), onDeviceModel = false)
+        assertEquals(45_000, t.firstTokenMs)
+        assertEquals(90_000, t.idleMs)
+    }
+
+    @Test
+    fun `explicit self-hosted defaults are preserved`() {
+        val t = StreamTimeoutPolicy.resolve(
+            config(
+                first = StreamTimeoutPolicy.SELF_HOSTED_FIRST_TOKEN_SEC,
+                idle = StreamTimeoutPolicy.SELF_HOSTED_IDLE_SEC,
+                baseUrl = selfHostedBase,
+            ),
+            onDeviceModel = false,
+        )
+        assertEquals(600_000, t.firstTokenMs)
+        assertEquals(120_000, t.idleMs)
+    }
 
     @Test
     fun `hosted providers keep the fast default budgets`() {
-        val t = StreamTimeoutPolicy.resolve(config(), onDeviceModel = false)
+        val t = StreamTimeoutPolicy.resolve(config(baseUrl = hostedBase), onDeviceModel = false)
         assertEquals(90_000, t.firstTokenMs)
         assertEquals(90_000, t.idleMs)
+    }
+
+    @Test
+    fun `built-in and account providers keep the fast hosted budget`() {
+        val harness = StreamTimeoutPolicy.resolve(HarnessProvider.config, onDeviceModel = false)
+        assertEquals(90_000, harness.firstTokenMs)
+        assertEquals(90_000, harness.idleMs)
+        val chatgpt = StreamTimeoutPolicy.resolve(
+            ProviderConfig(
+                "chatgpt:abc", "ChatGPT", ProviderType.OPENAI_RESPONSES,
+                "https://chatgpt.com/backend-api", "gpt-5",
+            ),
+            onDeviceModel = false,
+        )
+        assertEquals(90_000, chatgpt.firstTokenMs)
+        assertEquals(90_000, chatgpt.idleMs)
+    }
+
+    @Test
+    fun `hosted providers with explicit values still honour them`() {
+        val t = StreamTimeoutPolicy.resolve(config(first = 120, idle = 30, baseUrl = hostedBase), onDeviceModel = false)
+        assertEquals(120_000, t.firstTokenMs)
+        assertEquals(30_000, t.idleMs)
     }
 
     @Test
@@ -239,21 +332,61 @@ class StreamTimeoutTest {
     }
 
     @Test
-    fun `explicit self-hosted settings win`() {
-        val t = StreamTimeoutPolicy.resolve(
-            config(first = StreamTimeoutPolicy.SELF_HOSTED_FIRST_TOKEN_SEC, idle = StreamTimeoutPolicy.SELF_HOSTED_IDLE_SEC),
-            onDeviceModel = false,
-        )
-        assertEquals(600_000, t.firstTokenMs)
-        assertEquals(120_000, t.idleMs)
+    fun `invalid values fall back to the category default`() {
+        // Too small (below MIN_SEC) on a custom endpoint -> self-hosted default.
+        val tooSmallCustom = StreamTimeoutPolicy.resolve(config(first = 1, idle = 0, baseUrl = selfHostedBase), onDeviceModel = false)
+        assertEquals(600_000, tooSmallCustom.firstTokenMs)
+        assertEquals(120_000, tooSmallCustom.idleMs)
+        // Too large on a hosted brand -> hosted default.
+        val tooLargeHosted = StreamTimeoutPolicy.resolve(config(first = 0, idle = 999_999, baseUrl = hostedBase), onDeviceModel = false)
+        assertEquals(90_000, tooLargeHosted.idleMs)
+        // Invalid first token but a valid custom idle value keeps the valid one.
+        val mixed = StreamTimeoutPolicy.resolve(config(first = 2, idle = 150, baseUrl = selfHostedBase), onDeviceModel = false)
+        assertEquals(600_000, mixed.firstTokenMs)
+        assertEquals(150_000, mixed.idleMs)
     }
 
     @Test
-    fun `out-of-range values fall back to the provider default`() {
-        val tooSmall = StreamTimeoutPolicy.resolve(config(first = 1, idle = 0), onDeviceModel = false)
-        assertEquals(90_000, tooSmall.firstTokenMs)
-        val tooLarge = StreamTimeoutPolicy.resolve(config(first = 0, idle = 999_999), onDeviceModel = false)
-        assertEquals(90_000, tooLarge.idleMs)
+    fun `resolved self-hosted budgets drive the stream guard and retrier`() = runBlocking {
+        // Ties StreamTimeoutPolicy's numbers to the guard: the resolved budgets
+        // are what StreamRetrier hands the guard, so a first-token stall reports
+        // exactly those deadlines. The real budgets are minutes; scale both by
+        // the same factor so the test stays fast while the report stays exact.
+        val resolved = StreamTimeoutPolicy.resolve(config(baseUrl = selfHostedBase), onDeviceModel = false)
+        val scaled = StreamTimeouts(
+            firstTokenMs = resolved.firstTokenMs / 7_500,
+            idleMs = resolved.idleMs / 1_500,
+        )
+        assertEquals(80L, scaled.firstTokenMs)
+        assertEquals(80L, scaled.idleMs)
+
+        val stall = stallOf(
+            runCatching {
+                flow<StreamEvent> { awaitCancellation() }
+                    .stallGuard(scaled, meaningful)
+                    .collect { }
+            }.exceptionOrNull(),
+        )
+        assertTrue("expected a first-token stall", stall != null)
+        assertEquals(StallPhase.FIRST_TOKEN, stall!!.phase)
+        assertEquals(scaled.firstTokenMs, stall.timeoutMs)
+
+        var attempt = 0
+        val retries = mutableListOf<AgentEvent.Retrying>()
+        val result = StreamRetrier.run(
+            streamFor = {
+                (attempt++).let { n ->
+                    if (n == 0) flow<StreamEvent> { awaitCancellation() }
+                    else flowOf(StreamEvent.TextDelta("recovered"), StreamEvent.Done("stop"))
+                }
+            },
+            onAttemptStart = {}, hasOutput = { false }, handleEvent = { },
+            retryReason = { it }, emitEvent = { retries += it }, sleep = { },
+            timeouts = scaled,
+        )
+        assertEquals(null, result)
+        assertEquals(1, retries.size)
+        assertTrue(retries[0].reason.contains("initial response timed out"))
     }
 
     @Test

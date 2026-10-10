@@ -1,5 +1,8 @@
 package com.androidharness.app.agent
 
+import com.androidharness.app.chatgpt.ChatGptProtocol
+import com.androidharness.app.llm.HarnessProvider
+import com.androidharness.app.llm.HostedProviderEndpoints
 import com.androidharness.app.llm.ProviderConfig
 import com.androidharness.app.llm.StreamEvent
 import kotlinx.coroutines.CancellationException
@@ -153,14 +156,53 @@ internal object StreamTimeoutPolicy {
     const val SELF_HOSTED_FIRST_TOKEN_SEC = 600
     const val SELF_HOSTED_IDLE_SEC = 120
 
+    /**
+     * Resolves the two deadlines for one request.
+     *
+     * A stored `0` (or any value outside [MIN_SEC]..[MAX_SEC], including a
+     * legacy/restored config that never carried the fields) means "inherit the
+     * default for this provider category". Its meaning is unchanged here; only
+     * which default a category receives is fixed. Custom / self-hosted
+     * endpoints now fall back to the slow-model budget instead of a hosted
+     * gateway's fast one, so a large model behind a reverse proxy survives a
+     * cold start. Explicit valid values always win, per field.
+     */
     fun resolve(config: ProviderConfig, onDeviceModel: Boolean): StreamTimeouts {
-        val first = config.firstTokenTimeoutSec.takeIf { it in MIN_SEC..MAX_SEC }
-            ?: if (onDeviceModel) LOCAL_FIRST_TOKEN_SEC else HOSTED_FIRST_TOKEN_SEC
-        val idle = config.idleTimeoutSec.takeIf { it in MIN_SEC..MAX_SEC }
-            ?: if (onDeviceModel) LOCAL_IDLE_SEC else HOSTED_IDLE_SEC
+        val firstDefaultSec: Int
+        val idleDefaultSec: Int
+        when {
+            onDeviceModel -> {
+                firstDefaultSec = LOCAL_FIRST_TOKEN_SEC
+                idleDefaultSec = LOCAL_IDLE_SEC
+            }
+            config.isHostedProvider() -> {
+                firstDefaultSec = HOSTED_FIRST_TOKEN_SEC
+                idleDefaultSec = HOSTED_IDLE_SEC
+            }
+            else -> {
+                firstDefaultSec = SELF_HOSTED_FIRST_TOKEN_SEC
+                idleDefaultSec = SELF_HOSTED_IDLE_SEC
+            }
+        }
+        val first = config.firstTokenTimeoutSec.takeIf { it in MIN_SEC..MAX_SEC } ?: firstDefaultSec
+        val idle = config.idleTimeoutSec.takeIf { it in MIN_SEC..MAX_SEC } ?: idleDefaultSec
         return StreamTimeouts(first * 1000L, idle * 1000L)
     }
 }
+
+/**
+ * Whether a provider is a known hosted cloud service, which keeps the
+ * fast-fail streaming budget. Classification uses existing provider
+ * configuration, never a URL substring guess: the built-in Harness provider,
+ * an account-backed ChatGPT connection, or a config matching one of the
+ * curated cloud brands ([HostedProviderEndpoints]). Everything else, a custom
+ * OpenAI-compatible endpoint, a local server (Ollama, LM Studio) or a reverse
+ * proxy (ngrok, Colab), is self-hosted and gets the slow-model budget.
+ */
+internal fun ProviderConfig.isHostedProvider(): Boolean =
+    id == HarnessProvider.ID ||
+        ChatGptProtocol.isProvider(id) ||
+        HostedProviderEndpoints.isHosted(type, baseUrl)
 
 /**
  * The single shared retry wrapper for every streamed LLM request the engine

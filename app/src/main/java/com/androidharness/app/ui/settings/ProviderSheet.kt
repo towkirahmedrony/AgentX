@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.androidharness.app.agent.StreamTimeoutPolicy
 import com.androidharness.app.ui.common.ProviderMark
 import com.androidharness.app.ui.common.SecureDialogEffect
+import com.androidharness.app.llm.HostedProviderEndpoints
 import com.androidharness.app.llm.ModelCatalog
 import com.androidharness.app.llm.ModelEntry
 import com.androidharness.app.llm.ModelsDev
@@ -83,18 +84,22 @@ data class ProviderBrand(
     val suggestedModel: String? = null,
 )
 
+// Hosted brands share their endpoints with the streaming timeout policy
+// (HostedProviderEndpoints) so brand identity and timeout classification can
+// never drift apart. Ollama and LM Studio are local servers, not hosted, so
+// they keep literal addresses and are treated as self-hosted for timeouts.
 internal val ProviderBrands: List<ProviderBrand?> = listOf(
-    ProviderBrand("OpenRouter", ProviderType.OPENAI_COMPAT, "https://openrouter.ai/api/v1", true),
-    ProviderBrand("Anthropic", ProviderType.ANTHROPIC, "https://api.anthropic.com", true, "claude-sonnet-4-5"),
-    ProviderBrand("Gemini", ProviderType.GEMINI, "https://generativelanguage.googleapis.com/v1beta", true, "gemini-2.5-flash"),
-    ProviderBrand("OpenAI", ProviderType.OPENAI_COMPAT, "https://api.openai.com/v1", true),
+    ProviderBrand("OpenRouter", ProviderType.OPENAI_COMPAT, HostedProviderEndpoints.OPENROUTER, true),
+    ProviderBrand("Anthropic", ProviderType.ANTHROPIC, HostedProviderEndpoints.ANTHROPIC, true, "claude-sonnet-4-5"),
+    ProviderBrand("Gemini", ProviderType.GEMINI, HostedProviderEndpoints.GEMINI, true, "gemini-2.5-flash"),
+    ProviderBrand("OpenAI", ProviderType.OPENAI_COMPAT, HostedProviderEndpoints.OPENAI, true),
     // The newer Responses API (gpt-5/o-series first-class reasoning; some
     // latest models exist only there), same key as plain OpenAI.
-    ProviderBrand("OpenAI (Responses)", ProviderType.OPENAI_RESPONSES, "https://api.openai.com/v1", true),
-    ProviderBrand("Groq", ProviderType.OPENAI_COMPAT, "https://api.groq.com/openai/v1", true),
-    ProviderBrand("DeepSeek", ProviderType.OPENAI_COMPAT, "https://api.deepseek.com/v1", true),
-    ProviderBrand("Together", ProviderType.OPENAI_COMPAT, "https://api.together.xyz/v1", true),
-    ProviderBrand("Mistral", ProviderType.OPENAI_COMPAT, "https://api.mistral.ai/v1", true),
+    ProviderBrand("OpenAI (Responses)", ProviderType.OPENAI_RESPONSES, HostedProviderEndpoints.OPENAI, true),
+    ProviderBrand("Groq", ProviderType.OPENAI_COMPAT, HostedProviderEndpoints.GROQ, true),
+    ProviderBrand("DeepSeek", ProviderType.OPENAI_COMPAT, HostedProviderEndpoints.DEEPSEEK, true),
+    ProviderBrand("Together", ProviderType.OPENAI_COMPAT, HostedProviderEndpoints.TOGETHER, true),
+    ProviderBrand("Mistral", ProviderType.OPENAI_COMPAT, HostedProviderEndpoints.MISTRAL, true),
     ProviderBrand("Ollama", ProviderType.OPENAI_COMPAT, "http://127.0.0.1:11434/v1", false),
     ProviderBrand("LM Studio", ProviderType.OPENAI_COMPAT, "http://127.0.0.1:1234/v1", false),
     // Custom endpoints get their own tile that reveals the advanced fields.

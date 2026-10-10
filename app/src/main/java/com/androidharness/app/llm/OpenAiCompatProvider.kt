@@ -156,6 +156,13 @@ class OpenAiCompatProvider(
             // the authoritative ones, and emit exactly one Usage per request.
             var pendingUsage: StreamEvent.Usage? = null
             ProviderFactory.sseJson(request, client).takeWhile { el ->
+                // Keep-alive lines carry no chunk; surface them as liveness so
+                // the stream guard resets its idle timer on a live-but-quiet
+                // connection instead of failing a healthy stream.
+                if (el.isTransportActivity()) {
+                    emit(StreamEvent.Heartbeat)
+                    return@takeWhile true
+                }
                 val events = parseChunk(el, acc, indexToId)
                 events.forEach { event ->
                     if (event is StreamEvent.Usage) pendingUsage = event else emit(event)

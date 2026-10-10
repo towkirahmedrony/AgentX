@@ -124,7 +124,10 @@ class SettingsBackup(private val c: AppContainer) {
         }
         file.providers.filterNot { it.config.id == HarnessProvider.ID || com.androidharness.app.local.LocalModelCatalog.isLocal(it.config.id) }.forEach { entry ->
             val p = entry.config
-            val restored = c.providers.add(p.name + " (restored)", p.type, p.baseUrl, p.model, entry.apiKey.orEmpty())
+            val restored = c.providers.add(
+                p.name + " (restored)", p.type, p.baseUrl, p.model, entry.apiKey.orEmpty(),
+                p.firstTokenTimeoutSec, p.idleTimeoutSec,
+            )
             ids[p.id] = restored.id
             entry.customModels.forEach { c.providers.addCustomModel(restored.id, it) }
         }

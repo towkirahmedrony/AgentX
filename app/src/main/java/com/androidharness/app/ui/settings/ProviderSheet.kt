@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.androidharness.app.agent.StreamTimeoutPolicy
 import com.androidharness.app.ui.common.ProviderMark
 import com.androidharness.app.ui.common.SecureDialogEffect
 import com.androidharness.app.llm.ModelCatalog
@@ -113,7 +114,15 @@ fun ProviderSheet(
     existing: ProviderConfig?,
     existingKey: String?,
     onDismiss: () -> Unit,
-    onSave: (name: String, type: ProviderType, baseUrl: String, model: String, apiKey: String) -> Unit,
+    onSave: (
+        name: String,
+        type: ProviderType,
+        baseUrl: String,
+        model: String,
+        apiKey: String,
+        firstTokenTimeoutSec: Int,
+        idleTimeoutSec: Int,
+    ) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -136,7 +145,15 @@ internal fun ProviderSheetContent(
     existing: ProviderConfig?,
     existingKey: String?,
     onDismiss: () -> Unit,
-    onSave: (name: String, type: ProviderType, baseUrl: String, model: String, apiKey: String) -> Unit,
+    onSave: (
+        name: String,
+        type: ProviderType,
+        baseUrl: String,
+        model: String,
+        apiKey: String,
+        firstTokenTimeoutSec: Int,
+        idleTimeoutSec: Int,
+    ) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
 
@@ -155,6 +172,27 @@ internal fun ProviderSheetContent(
     var name by remember { mutableStateOf(existing?.name ?: "") }
     var model by remember { mutableStateOf(existing?.model ?: "") }
     var apiKey by remember { mutableStateOf(existingKey ?: "") }
+
+    // Streaming deadlines only surface for custom endpoints. A brand-new
+    // custom endpoint starts at the self-hosted defaults (10 min first token,
+    // 2 min idle) so a large model behind ngrok/Colab works without touching
+    // source; editing an existing provider shows its stored value or "auto".
+    var firstTokenText by remember { mutableStateOf(
+        existing?.firstTokenTimeoutSec?.takeIf { it > 0 }?.toString()
+            ?: if (existing != null && brand == null) "${StreamTimeoutPolicy.SELF_HOSTED_FIRST_TOKEN_SEC}" else ""
+    ) }
+    var idleText by remember { mutableStateOf(
+        existing?.idleTimeoutSec?.takeIf { it > 0 }?.toString()
+            ?: if (existing != null && brand == null) "${StreamTimeoutPolicy.SELF_HOSTED_IDLE_SEC}" else ""
+    ) }
+    val firstTokenValid = remember(firstTokenText) {
+        firstTokenText.isBlank() || firstTokenText.trim().toIntOrNull()
+            ?.let { it in StreamTimeoutPolicy.MIN_SEC..StreamTimeoutPolicy.MAX_SEC } == true
+    }
+    val idleValid = remember(idleText) {
+        idleText.isBlank() || idleText.trim().toIntOrNull()
+            ?.let { it in StreamTimeoutPolicy.MIN_SEC..StreamTimeoutPolicy.MAX_SEC } == true
+    }
 
     var typeMenu by remember { mutableStateOf(false) }
     var providerQuery by remember { mutableStateOf("") }
@@ -321,6 +359,8 @@ internal fun ProviderSheetContent(
                             brand = null
                             devChoice = null
                             isCustom = true
+                            firstTokenText = "${StreamTimeoutPolicy.SELF_HOSTED_FIRST_TOKEN_SEC}"
+                            idleText = "${StreamTimeoutPolicy.SELF_HOSTED_IDLE_SEC}"
                             entries = null
                             fetchError = null
                             step = AddStep.KEY
@@ -376,6 +416,40 @@ internal fun ProviderSheetContent(
                             onValueChange = { baseUrl = it },
                             label = { Text("Server address") },
                             placeholder = { Text("https://your-server.example.com/v1") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = firstTokenText,
+                            onValueChange = { firstTokenText = it.filter(Char::isDigit).take(4) },
+                            label = { Text("Initial response timeout (seconds)") },
+                            placeholder = { Text("${StreamTimeoutPolicy.SELF_HOSTED_FIRST_TOKEN_SEC}") },
+                            supportingText = {
+                                Text(
+                                    if (firstTokenValid)
+                                        "How long to wait for the first token. Raise it for slow self-hosted models; blank uses the default."
+                                    else
+                                        "Enter ${StreamTimeoutPolicy.MIN_SEC}-${StreamTimeoutPolicy.MAX_SEC} seconds, or leave blank for the default."
+                                )
+                            },
+                            isError = !firstTokenValid,
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = idleText,
+                            onValueChange = { idleText = it.filter(Char::isDigit).take(4) },
+                            label = { Text("Streaming idle timeout (seconds)") },
+                            placeholder = { Text("${StreamTimeoutPolicy.SELF_HOSTED_IDLE_SEC}") },
+                            supportingText = {
+                                Text(
+                                    if (idleValid)
+                                        "How long the stream may go quiet between chunks. Keep-alives reset it; blank uses the default."
+                                    else
+                                        "Enter ${StreamTimeoutPolicy.MIN_SEC}-${StreamTimeoutPolicy.MAX_SEC} seconds, or leave blank for the default."
+                                )
+                            },
+                            isError = !idleValid,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -522,9 +596,17 @@ internal fun ProviderSheetContent(
                         Button(
                             onClick = {
                                 val finalName = name.ifBlank { selectedLabel }
-                                onSave(finalName, effectiveType, effectiveBaseUrl.trim(), model.trim(), apiKey.trim())
+                                onSave(
+                                    finalName,
+                                    effectiveType,
+                                    effectiveBaseUrl.trim(),
+                                    model.trim(),
+                                    apiKey.trim(),
+                                    firstTokenText.trim().toIntOrNull() ?: 0,
+                                    idleText.trim().toIntOrNull() ?: 0,
+                                )
                             },
-                            enabled = model.isNotBlank(),
+                            enabled = model.isNotBlank() && firstTokenValid && idleValid,
                         ) { Text("Save") }
                     },
                     secondary = null,

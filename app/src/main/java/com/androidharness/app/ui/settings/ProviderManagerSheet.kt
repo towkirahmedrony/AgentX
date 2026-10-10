@@ -77,6 +77,8 @@ fun ProviderManagerSheet(
         baseUrl: String,
         model: String,
         apiKey: String,
+        firstTokenTimeoutSec: Int,
+        idleTimeoutSec: Int,
     ) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -270,8 +272,8 @@ fun ProviderManagerSheet(
                     existing = editing,
                     existingKey = editing?.let { apiKey(it.id) },
                     onDismiss = { showForm = false },
-                    onSave = { name, type, baseUrl, model, key ->
-                        onSave(editing, name, type, baseUrl, model, key)
+                    onSave = { name, type, baseUrl, model, key, firstToken, idle ->
+                        onSave(editing, name, type, baseUrl, model, key, firstToken, idle)
                         showForm = false
                         editing = null
                     },

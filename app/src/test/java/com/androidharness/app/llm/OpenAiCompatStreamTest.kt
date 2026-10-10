@@ -202,6 +202,30 @@ class OpenAiCompatStreamTest {
     }
 
     @Test
+    fun `sse keep-alive comments surface as heartbeats, not output`() = runBlocking {
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            val body = ": keep-alive\n\n" +
+                "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\n" +
+                "data: [DONE]\n\n"
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(body.toResponseBody("text/event-stream".toMediaType()))
+                .build()
+        }.build()
+        val events = OpenAiCompatProvider(client, Json { ignoreUnknownKeys = true }).streamChat(
+            config, "", "Help with coding.",
+            listOf(ChatMessage(role = Role.USER, text = "hi")), emptyList(), RequestOptions(),
+        ).toList()
+
+        assertTrue(events.first() is StreamEvent.Heartbeat)
+        assertTrue(events.any { it is StreamEvent.TextDelta && it.text == "ok" })
+        assertTrue(events.last() is StreamEvent.Done)
+    }
+
+    @Test
     fun `choice error discards fragments and preserves string status code`() = runBlocking {
         val events = stream(provider(listOf(
             partialCall,

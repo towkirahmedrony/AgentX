@@ -409,6 +409,7 @@ class AgentEngine(
             // Request attempt loop: transient failures (429/5xx/network) are
             // retried with backoff, but ONLY while nothing has streamed yet,
             // re-emitting deltas the UI already showed would duplicate output.
+            val runTimeouts = StreamTimeoutPolicy.resolve(config, localChat)
             var recoverableFailure = false
             var failure = StreamRetrier.run(
                 streamFor = {
@@ -428,7 +429,7 @@ class AgentEngine(
                 handleEvent = streamEventHandler,
                 retryReason = { f -> f.take(200) },
                 emitEvent = { emit(it) },
-                stallTimeoutMs = if (localChat) 600_000 else 90_000,
+                timeouts = runTimeouts,
                 allowRetries = !localChat,
                 onTerminalFailure = { recoverableFailure = it },
             )
@@ -457,6 +458,7 @@ class AgentEngine(
                     handleEvent = streamEventHandler,
                     retryReason = { f -> f.take(200) },
                     emitEvent = { emit(it) },
+                    timeouts = runTimeouts,
                     onTerminalFailure = { recoverableFailure = it },
                 )
             }
@@ -1212,6 +1214,8 @@ class AgentEngine(
             // Same transient-failure retry policy as the main loop. Unlike the
             // main loop, thinking output does not block a retry here: the
             // subagent streams no deltas to the UI, so nothing can duplicate.
+            val subagentTimeouts =
+                StreamTimeoutPolicy.resolve(config, com.androidharness.app.local.LocalModelCatalog.isLocal(config.id))
             val failure = StreamRetrier.run(
                 streamFor = {
                     provider.streamChat(config, apiKey, system, history, subTools, requestOptions)
@@ -1250,6 +1254,7 @@ class AgentEngine(
                 },
                 retryReason = { f -> "subagent: ${f.take(160)}" },
                 emitEvent = { emitEvent(it) },
+                timeouts = subagentTimeouts,
             )
 
             if (text.isBlank() && calls.isEmpty()) {
@@ -1378,6 +1383,8 @@ class AgentEngine(
 
         val summary = StringBuilder()
         val olderClean = ContextHygiene.stripImages(older)
+        val compactTimeouts =
+            StreamTimeoutPolicy.resolve(config, com.androidharness.app.local.LocalModelCatalog.isLocal(config.id))
         val compactError = StreamRetrier.run(
             streamFor = {
                 provider.streamChat(
@@ -1410,6 +1417,7 @@ class AgentEngine(
             },
             retryReason = { f -> f.take(200) },
             emitEvent = { emitEvent(it) },
+            timeouts = compactTimeouts,
         )
         compactError?.let { emitEvent(AgentEvent.Error("Auto-compaction failed: $it")) }
         if (summary.isBlank()) return null

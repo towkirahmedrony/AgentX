@@ -113,6 +113,8 @@ class GeminiProvider(
 
         return flow {
             ProviderFactory.sseJson(request, client).collect { el ->
+                // Keep-alive lines reset the stream guard's idle timer.
+                if (el.isTransportActivity()) { emit(StreamEvent.Heartbeat); return@collect }
                 val chunk = el as? JsonObject ?: return@collect
 
                 chunk["error"]?.jsonObjectOrAbsent()?.get("message")?.jsonPrimitive?.contentOrNull

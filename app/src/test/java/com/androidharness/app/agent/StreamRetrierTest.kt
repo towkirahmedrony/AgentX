@@ -253,11 +253,11 @@ class StreamRetrierTest {
             retryReason = { it },
             emitEvent = { retries += it },
             sleep = {},
-            stallTimeoutMs = 150,
+            timeouts = StreamTimeouts(150, 150),
         )
         assertEquals(null, result)
         assertEquals(1, retries.size)
-        assertEquals("Generation stalled - no data received for 0s (timed out)", retries[0].reason)
+        assertEquals("No response from the model within 0s (initial response timed out)", retries[0].reason)
     }
 
     @Test
@@ -273,7 +273,7 @@ class StreamRetrierTest {
             },
             onAttemptStart = {}, hasOutput = { false }, handleEvent = { seen += it },
             retryReason = { it }, emitEvent = { error("400 must not retry") },
-            sleep = {}, stallTimeoutMs = 150,
+            sleep = {}, timeouts = StreamTimeouts(150, 150),
         )
         assertEquals("Invalid request", result)
         assertTrue(seen.isEmpty())

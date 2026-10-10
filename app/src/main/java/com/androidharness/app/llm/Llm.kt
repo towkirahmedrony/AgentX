@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -54,6 +55,20 @@ data class ProviderConfig(
     val type: ProviderType,
     val baseUrl: String,
     val model: String,
+    /**
+     * Budget, in seconds, from request start to the first meaningful response
+     * event. A large self-hosted model can spend minutes in cold start, model
+     * load or prompt prefill before its first token. 0 means "use the default
+     * for this provider category" (fast hosted APIs get a short budget, so a
+     * silent gateway still surfaces quickly).
+     */
+    val firstTokenTimeoutSec: Int = 0,
+    /**
+     * Budget, in seconds, between streaming events once generation started.
+     * Keep-alive frames reset it; a genuinely silent stream fails. 0 means
+     * "use the default for this provider category".
+     */
+    val idleTimeoutSec: Int = 0,
 )
 
 data class ToolSchema(
@@ -111,7 +126,30 @@ sealed interface StreamEvent {
      * "MAX_TOKENS", or null when the server never reported one.
      */
     data class Done(val finishReason: String? = null) : StreamEvent
+
+    /**
+     * Transport liveness with no model output: an SSE comment (": ping"), an
+     * `event:`/`id:`/`retry:` field, or any other keep-alive byte the parser
+     * can observe. It exists so a stream guard can distinguish "the connection
+     * is alive, the model is still thinking" from "the socket died". It must
+     * never be treated as assistant output or as a first token.
+     */
+    data object Heartbeat : StreamEvent
 }
+
+/**
+ * Marker payload [ProviderFactory.sseJson] emits for an SSE line that carries
+ * transport activity but no model data. Content parsers see a non-chunk
+ * [JsonObject] and ignore it; providers that care translate it into
+ * [StreamEvent.Heartbeat].
+ */
+private const val ACTIVITY_MARKER = "\u0000harness-sse-activity"
+
+internal val ACTIVITY_FRAME: JsonElement = JsonPrimitive(ACTIVITY_MARKER)
+
+/** True for the transport-activity marker emitted for SSE keep-alive lines. */
+internal fun JsonElement.isTransportActivity(): Boolean =
+    this is JsonPrimitive && this.isString && this.content == ACTIVITY_MARKER
 
 class ApiException(val code: Int, message: String) : IOException("HTTP $code: $message")
 
@@ -193,6 +231,17 @@ object ProviderFactory {
                     val source = it.body!!.source()
                     while (true) {
                         val line = readSseLine(source) ?: break
+                        // SSE comment lines (": ping") and non-data fields
+                        // (event:, id:, retry:) are pure transport keep-alives.
+                        // Surface them so the stream guard resets its idle
+                        // timer on a live-but-quiet connection instead of
+                        // treating silence as a dead socket. Blank separators
+                        // between events are NOT activity, a data frame will
+                        // follow and reset the guard on its own.
+                        if (line.isNotEmpty() && !line.startsWith("data:")) {
+                            send(ACTIVITY_FRAME)
+                            continue
+                        }
                         if (!line.startsWith("data:")) continue
                         val payload = line.removePrefix("data:").trim()
                         if (payload == "[DONE]") break

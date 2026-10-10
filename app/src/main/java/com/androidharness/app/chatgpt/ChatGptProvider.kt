@@ -77,6 +77,8 @@ class ChatGptProvider(
                 try { ProviderFactory.sseJson(request, client).collect { element ->
                     if (completed || failed) return@collect
                     received = true
+                    // Keep-alive lines reset the stream guard's idle timer.
+                    if (element.isTransportActivity()) { emit(StreamEvent.Heartbeat); return@collect }
                     val event = element as? JsonObject ?: return@collect
                     val type = event["type"]?.jsonPrimitive?.contentOrNull
                     type?.let { eventCounts[it] = (eventCounts[it] ?: 0) + 1 }

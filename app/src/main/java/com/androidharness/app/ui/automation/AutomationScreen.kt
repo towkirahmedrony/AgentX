@@ -1058,12 +1058,19 @@ private fun AutomationEditorDialog(
                     selectedModel = null
                 }
             },
-            onSave = { existing, name, type, baseUrl, model, apiKey ->
+            onSave = { existing, name, type, baseUrl, model, apiKey, firstToken, idle ->
                 scope.launch {
                     val saved = if (existing == null) {
-                        container.providers.add(name, type, baseUrl, model, apiKey)
+                        container.providers.add(name, type, baseUrl, model, apiKey, firstToken, idle)
                     } else {
-                        val updated = existing.copy(name = name, type = type, baseUrl = baseUrl, model = model)
+                        val updated = existing.copy(
+                            name = name,
+                            type = type,
+                            baseUrl = baseUrl,
+                            model = model,
+                            firstTokenTimeoutSec = firstToken,
+                            idleTimeoutSec = idle,
+                        )
                         container.providers.update(updated, apiKey)
                         updated
                     }

@@ -57,6 +57,8 @@ class OpenAiResponsesProvider(
             // the stream so each request tallies exactly once.
             var pendingUsage: StreamEvent.Usage? = null
             ProviderFactory.sseJson(request, client).collect { el ->
+                // Keep-alive lines reset the stream guard's idle timer.
+                if (el.isTransportActivity()) { emit(StreamEvent.Heartbeat); return@collect }
                 parseEvent(el, acc).forEach { event ->
                     if (event is StreamEvent.Usage) pendingUsage = event else emit(event)
                 }

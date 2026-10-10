@@ -1,8 +1,9 @@
-name: Debug build
+name: Android APK
 
-# Builds the debug APK on every push to main (app/ changes), nightly at
-# 02:00 UTC, or on demand from the Actions tab. The APK is uploaded as a
-# workflow artifact (Actions tab, kept 30 days).
+# Builds the debug APK on pushes to main and on pull requests, nightly at
+# 02:00 UTC, or on demand from the Actions tab. Unit tests run before the
+# build; the signed-debug APK is uploaded as a workflow artifact (Actions
+# tab, kept 30 days) and needs no signing secrets.
 
 on:
   schedule:
@@ -13,13 +14,28 @@ on:
       - main
     paths:
       - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
+      - ".github/workflows/nightly.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
       - ".github/workflows/nightly.yml"
 
+# A build workflow only reads the repository; no write scopes are needed.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: nightly-build
+  group: apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.androidharness.app.llm.HarnessProvider
 import com.androidharness.app.llm.ModelCatalog
 import com.androidharness.app.llm.ModelEntry
+import com.androidharness.app.agent.StreamTimeoutPolicy
 import com.androidharness.app.llm.ProviderConfig
 import com.androidharness.app.llm.ProviderType
 import kotlinx.coroutines.flow.Flow
@@ -148,13 +149,23 @@ class ProviderRepository(
         prefs[catalogKey(HarnessProvider.ID)], prefs[harnessCatalogSource],
     )
 
-    suspend fun add(name: String, type: ProviderType, baseUrl: String, model: String, apiKey: String): ProviderConfig {
+    suspend fun add(
+        name: String,
+        type: ProviderType,
+        baseUrl: String,
+        model: String,
+        apiKey: String,
+        firstTokenTimeoutSec: Int = 0,
+        idleTimeoutSec: Int = 0,
+    ): ProviderConfig {
         val config = ProviderConfig(
             id = UUID.randomUUID().toString(),
             name = name,
             type = type,
             baseUrl = baseUrl.ifBlank { type.defaultBaseUrl },
             model = model,
+            firstTokenTimeoutSec = firstTokenTimeoutSec.coerceIn(0, StreamTimeoutPolicy.MAX_SEC),
+            idleTimeoutSec = idleTimeoutSec.coerceIn(0, StreamTimeoutPolicy.MAX_SEC),
         )
         if (apiKey.isNotBlank()) keys.putKey(config.id, apiKey)
         save(current() + config)

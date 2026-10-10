@@ -1660,16 +1660,25 @@ class ChatViewModel(
         baseUrl: String,
         model: String,
         apiKey: String,
+        firstTokenTimeoutSec: Int,
+        idleTimeoutSec: Int,
     ) {
         viewModelScope.launch {
             if (existing == null) {
-                val created = c.providers.add(name, type, baseUrl, model, apiKey)
+                val created = c.providers.add(name, type, baseUrl, model, apiKey, firstTokenTimeoutSec, idleTimeoutSec)
                 if (_state.value.activeProviderId == null) {
                     c.settings.setActiveProvider(created.id)
                 }
             } else {
                 c.providers.update(
-                    existing.copy(name = name, type = type, baseUrl = baseUrl, model = model),
+                    existing.copy(
+                        name = name,
+                        type = type,
+                        baseUrl = baseUrl,
+                        model = model,
+                        firstTokenTimeoutSec = firstTokenTimeoutSec,
+                        idleTimeoutSec = idleTimeoutSec,
+                    ),
                     apiKey,
                 )
             }

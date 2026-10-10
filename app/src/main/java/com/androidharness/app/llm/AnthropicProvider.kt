@@ -131,6 +131,9 @@ class AnthropicProvider(
         }
 
         events.mapNotNull { el ->
+            // Keep-alives (SSE comments, `event:` pings) reset the stream
+            // guard's idle timer without counting as model output.
+            if (el.isTransportActivity()) return@mapNotNull StreamEvent.Heartbeat
             val event = el as? JsonObject ?: return@mapNotNull null
             when (event["type"]?.jsonPrimitive?.contentOrNull) {
                 "message_start" -> {

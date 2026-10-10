@@ -1492,12 +1492,18 @@ class ChatViewModel(
         c.runManager.acquireKeepalive()
         try {
             val summary = StringBuilder()
-            com.androidharness.app.llm.ProviderFactory.create(provider).streamChat(
-                provider, apiKey,
+            // Same wire shape as a run: the stored token list can contain the
+            // system rows a previous compaction wrote, and a system turn inside
+            // the message list is rejected by the model's chat template.
+            val compactWire = com.androidharness.app.agent.ContextHygiene.toWireShape(
+                history,
                 "Summarize this coding-agent conversation compactly. Preserve: the user's goal, " +
                     "files created/modified and their paths, key decisions, pending work and next steps. " +
                     "Output plain notes only.",
-                history, emptyList(),
+            )
+            com.androidharness.app.llm.ProviderFactory.create(provider).streamChat(
+                provider, apiKey,
+                compactWire.system, compactWire.messages, emptyList(),
                 RequestOptions(maxOutputTokens = 1_500, thinking = ThinkingLevel.OFF, cacheKey = sid),
             ).collect { ev ->
                 when (ev) {

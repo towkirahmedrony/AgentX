@@ -2,6 +2,7 @@ package com.androidharness.app.automation
 
 import com.androidharness.app.AppContainer
 import com.androidharness.app.agent.ThinkingLevel
+import com.androidharness.app.agent.ContextHygiene
 import com.androidharness.app.core.ChatMessage
 import com.androidharness.app.core.Role
 import com.androidharness.app.llm.HarnessProvider
@@ -76,11 +77,17 @@ class AutomationAiPlanner(private val c: AppContainer) {
         val zone = ZoneId.systemDefault()
         val now = ZonedDateTime.now(zone)
         val output = StringBuilder()
+        // Planner turns are user-side prompts and can be consecutive; shape them
+        // so the request stays renderable on a strict chat template.
+        val plannerWire = ContextHygiene.toWireShape(
+            turns.map { ChatMessage(role = it.role, text = it.text) },
+            systemPrompt(projectName, now),
+        )
         ProviderFactory.create(provider).streamChat(
             provider.copy(model = model),
             apiKey,
-            systemPrompt(projectName, now),
-            turns.map { ChatMessage(role = it.role, text = it.text) },
+            plannerWire.system,
+            plannerWire.messages,
             emptyList(),
             RequestOptions(maxOutputTokens = 2_048, thinking = ThinkingLevel.OFF),
         ).collect { event ->

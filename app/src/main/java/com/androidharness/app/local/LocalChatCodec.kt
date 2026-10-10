@@ -20,7 +20,16 @@ internal object LocalChatCodec {
         put("enable_thinking", thinking)
         putJsonArray("messages") {
             if (includeAgentContext && system.isNotBlank()) add(buildJsonObject { put("role", "system"); put("content", system) })
-            (if (includeAgentContext) messages else plainChatMessages(messages)).forEach { message -> add(buildJsonObject {
+            // A system turn can never appear inside the message list: llama.cpp
+            // takes the system instruction from the separate `system` field, and
+            // a second one in the list makes the template raise "After the
+            // optional system message, conversation roles must alternate".
+            // ContextHygiene.toWireShape owns the full shape (it folds a stored
+            // summary into the instruction); this only guarantees the codec
+            // itself can never produce a system turn.
+            (if (includeAgentContext) messages else plainChatMessages(messages))
+                .filter { it.role != Role.SYSTEM }
+                .forEach { message -> add(buildJsonObject {
                 put("role", message.role.name.lowercase())
                 if (message.imageData.isEmpty()) put("content", message.text)
                 else putJsonArray("content") {

@@ -637,9 +637,16 @@ class AgentEngine(
             // re-emitting deltas the UI already showed would duplicate output.
             val runTimeouts = StreamTimeoutPolicy.resolve(config, localChat)
             var recoverableFailure = false
+            // Everything the provider receives is reduced to a valid wire shape
+            // here: one system instruction, then alternating turns with tool
+            // pairing intact. No stored history can therefore make the request
+            // unrenderable, which is what makes a failed turn recoverable
+            // instead of permanent. Computed once per request so a retry resends
+            // the same payload rather than a reshaped one.
+            val wire = ContextHygiene.toWireShape(working, requestSystemPrompt)
             var failure = StreamRetrier.run(
                 streamFor = {
-                    provider.streamChat(config, apiKey, requestSystemPrompt, working, tools, requestOptions)
+                    provider.streamChat(config, apiKey, wire.system, wire.messages, tools, requestOptions)
                 },
                 onAttemptStart = {
                     requestStartedNs = System.nanoTime()
@@ -666,9 +673,13 @@ class AgentEngine(
                 val stripped = ContextHygiene.stripImages(working)
                 working.clear()
                 working.addAll(stripped)
+                // Reshaped, because the strip changed the messages themselves.
+                val strippedWire = ContextHygiene.toWireShape(working, requestSystemPrompt)
                 failure = StreamRetrier.run(
                     streamFor = {
-                        provider.streamChat(config, apiKey, requestSystemPrompt, working, tools, requestOptions)
+                        provider.streamChat(
+                            config, apiKey, strippedWire.system, strippedWire.messages, tools, requestOptions,
+                        )
                     },
                     onAttemptStart = {
                         requestStartedNs = System.nanoTime()
@@ -1628,9 +1639,10 @@ class AgentEngine(
             // subagent streams no deltas to the UI, so nothing can duplicate.
             val subagentTimeouts =
                 StreamTimeoutPolicy.resolve(config, com.androidharness.app.local.LocalModelCatalog.isLocal(config.id))
+            val subWire = ContextHygiene.toWireShape(history, system)
             val failure = StreamRetrier.run(
                 streamFor = {
-                    provider.streamChat(config, apiKey, system, history, subTools, requestOptions)
+                    provider.streamChat(config, apiKey, subWire.system, subWire.messages, subTools, requestOptions)
                 },
                 onAttemptStart = {
                     text.clear()
@@ -1814,14 +1826,17 @@ class AgentEngine(
         }
         val compactTimeouts =
             StreamTimeoutPolicy.resolve(config, com.androidharness.app.local.LocalModelCatalog.isLocal(config.id))
+        val summarizerWire = ContextHygiene.toWireShape(
+            summarizerInput,
+            "Summarize this coding-agent conversation compactly. Preserve: the user's goal, " +
+                "files created/modified and their paths, key decisions, pending work and next steps. " +
+                "Output plain notes only.",
+        )
         val compactError = StreamRetrier.run(
             streamFor = {
                 provider.streamChat(
                     config, apiKey,
-                    "Summarize this coding-agent conversation compactly. Preserve: the user's goal, " +
-                        "files created/modified and their paths, key decisions, pending work and next steps. " +
-                        "Output plain notes only.",
-                    summarizerInput, emptyList(),
+                    summarizerWire.system, summarizerWire.messages, emptyList(),
                     RequestOptions(maxOutputTokens = SUMMARY_OUTPUT_TOKENS, thinking = ThinkingLevel.OFF, cacheKey = sessionId),
                 )
             },

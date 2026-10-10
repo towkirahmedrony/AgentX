@@ -278,9 +278,149 @@ object ContextHygiene {
             val names = m.images.joinToString(", ") { it.name }.ifEmpty { "image" }
             val placeholder = "$note ($names)"
             val newText = if (m.text.isNotBlank()) "${m.text}\n\n$placeholder" else placeholder
-            m.copy(text = newText, imageData = emptyList())
+            // The refs go with the payload: the note already records that an
+            // attachment existed, and leaving them behind would make the wire
+            // shape report the attachment as unloadable a second time.
+            m.copy(text = newText, imageData = emptyList(), images = emptyList())
         }
     }
+
+    // ------------------------------------------------------------------
+    // Wire shape
+    // ------------------------------------------------------------------
+
+    /** Stable heading used when a stored system note is folded into the prompt. */
+    const val SUMMARY_SECTION_HEADING = "Summary of the earlier conversation"
+
+    /**
+     * One request, in the shape every supported protocol accepts: a single
+     * system instruction plus a message list that alternates.
+     */
+    data class WireHistory(val system: String, val messages: List<ChatMessage>)
+
+    /**
+     * Reduces a stored history to the shape that can actually be transmitted.
+     *
+     * Every provider AgentX speaks to takes the system instruction OUT OF BAND
+     * (an OpenAI `system` role parameter, Anthropic's top-level `system`,
+     * Gemini's `systemInstruction`, and the local server's templated system
+     * turn). A `SYSTEM` entry left inside the message list therefore cannot be
+     * rendered as a turn by either side, and each protocol fails in its own way:
+     *
+     *  - an OpenAI-compatible server running the model's chat template raises
+     *    *"After the optional system message, conversation roles must alternate
+     *    user and assistant roles except for tool calls and results"* — the
+     *    reported 500;
+     *  - Anthropic and Gemini rewrite it to a `user` turn, which then collides
+     *    with the real user turn;
+     *  - OpenAI itself tolerates it, but it is still instruction text sitting in
+     *    a turn's position.
+     *
+     * AgentX stores two such entries: the compaction summary (real context worth
+     * keeping) and the compaction notice (a message for the user, not for the
+     * model). This folds the first into the system instruction and drops the
+     * second, then makes the remaining turns alternate.
+     *
+     * The stored transcript is never modified — only the copy that goes on the
+     * wire — so the UI still shows every message and recovery stays a rendering
+     * concern. That is what stops a failed turn from poisoning the conversation:
+     * whatever the previous turn left behind, the next request is still
+     * expressible.
+     */
+    fun toWireShape(history: List<ChatMessage>, systemPrompt: String): WireHistory {
+        val notes = mutableListOf<String>()
+        val turns = ArrayList<ChatMessage>(history.size)
+        for (message in history) {
+            if (message.role == Role.SYSTEM) {
+                if (message.text.isNotBlank() && !message.text.startsWith(COMPACTION_NOTICE_PREFIX)) {
+                    notes += message.text
+                }
+            } else {
+                turns += message.withMissingImageNote()
+            }
+        }
+        val system = buildString {
+            append(systemPrompt.trim())
+            if (notes.isNotEmpty()) {
+                if (isNotEmpty()) append("\n\n")
+                append(SUMMARY_SECTION_HEADING)
+                append(":\n")
+                notes.joinTo(this, separator = "\n\n")
+            }
+        }
+        return WireHistory(system = system, messages = toAlternatingTurns(turns))
+    }
+
+    /**
+     * A message that declared an image whose payload could not be resolved must
+     * not go out as plain text: the request would silently lose the attachment.
+     * Say so instead, so the model knows something was attached.
+     */
+    private fun ChatMessage.withMissingImageNote(): ChatMessage {
+        if (images.isEmpty() || imageData.isNotEmpty()) return this
+        val names = images.joinToString(", ") { it.name }.ifEmpty { "image" }
+        val note = "[Attached image could not be loaded: $names]"
+        return copy(text = if (text.isBlank()) note else "$text\n\n$note")
+    }
+
+    /**
+     * Forces strict user/assistant alternation while keeping tool calls and
+     * their results intact and in order.
+     *
+     * The rules, and why each is safe:
+     *
+     *  - a history that begins with an assistant or tool message has no asking
+     *    user turn in the window (it is a slice of a longer conversation) and
+     *    cannot be rendered as an opening turn, so that unanswerable prefix is
+     *    dropped from the *wire copy* only;
+     *  - consecutive messages of the same role are merged rather than discarded:
+     *    text is joined and images concatenated, so a failed turn followed by a
+     *    new user message becomes one user turn carrying both. This is the
+     *    recovery path — the conversation keeps working and nothing the user
+     *    wrote is lost;
+     *  - tool messages are never merged, and pairing is re-checked afterwards by
+     *    [sanitizeToolPairing], so a merge can never leave a result answering a
+     *    call that moved.
+     */
+    private fun toAlternatingTurns(history: List<ChatMessage>): List<ChatMessage> {
+        // Empties go first: dropping one *after* merging would leave two
+        // same-role turns adjacent again and reintroduce the very violation this
+        // exists to prevent.
+        val present = history.filterNot { it.isEmptyTurn() }
+        val firstUser = present.indexOfFirst { it.role == Role.USER }
+        // No user turn at all: there is no conversation to reconstruct, and
+        // sending an empty message list would fail on its own. Every AgentX flow
+        // opens with the user's turn, so this is a guard rather than a case;
+        // leaving the caller's turns alone is the choice that cannot turn a
+        // working request into a broken one.
+        if (firstUser < 0) return sanitizeToolPairing(present)
+        val out = ArrayList<ChatMessage>(present.size)
+        for (message in present.subList(firstUser, present.size)) {
+            val previous = out.lastOrNull()
+            if (previous != null && previous.role == message.role &&
+                (message.role == Role.USER || message.role == Role.ASSISTANT)
+            ) {
+                out[out.lastIndex] = previous.mergedWith(message)
+            } else {
+                out += message
+            }
+        }
+        return sanitizeToolPairing(out)
+    }
+
+    /** Joins two same-role turns into one, preserving text, images and calls. */
+    private fun ChatMessage.mergedWith(next: ChatMessage): ChatMessage = copy(
+        text = listOf(text, next.text).filter { it.isNotBlank() }.joinToString("\n\n"),
+        imageData = imageData + next.imageData,
+        images = images + next.images,
+        toolCalls = toolCalls + next.toolCalls,
+        thinking = listOf(thinking, next.thinking).filter { it.isNotBlank() }.joinToString("\n"),
+    )
+
+    /** A turn carrying no content at all cannot be rendered by any protocol. */
+    private fun ChatMessage.isEmptyTurn(): Boolean =
+        text.isBlank() && imageData.isEmpty() && images.isEmpty() &&
+            toolCalls.isEmpty() && toolCallId == null
 
     fun summaryMessage(summary: String): ChatMessage = ChatMessage(
         role = Role.SYSTEM,

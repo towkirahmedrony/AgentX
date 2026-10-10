@@ -11,5 +11,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "AndroidHarness"
+rootProject.name = "AgentX"
 include(":app")

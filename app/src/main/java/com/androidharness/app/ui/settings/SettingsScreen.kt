@@ -2601,8 +2601,8 @@ private fun UpdatesCard(container: AppContainer) {
 // ---------------------------------------------------------------------------
 
 private const val AUTHOR_URL = "https://github.com/Sanuu7"
-private const val REPO_URL = "https://github.com/Sanuu7/AndroidHarness"
-private const val LICENSE_URL = "https://github.com/Sanuu7/AndroidHarness/blob/main/LICENSE"
+private const val REPO_URL = "https://github.com/towkirahmedrony/AgentX"
+private const val LICENSE_URL = "https://github.com/towkirahmedrony/AgentX/blob/main/LICENSE"
 
 /** Installed version, shared by the About page and the update card. */
 private fun appVersionLabel(context: Context): String = runCatching {
@@ -2688,7 +2688,7 @@ private fun AboutSection(container: AppContainer) {
                 Icon(Icons.Outlined.Code, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
             },
             title = "Source code",
-            subtitle = "github.com/Sanuu7/AndroidHarness",
+            subtitle = "github.com/towkirahmedrony/AgentX",
             onClick = { open(REPO_URL) },
             trailing = { ExternalLinkIcon() },
         )

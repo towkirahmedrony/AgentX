@@ -371,7 +371,7 @@ class OpenAiCompatProvider(
             HarnessProvider.withSession(requestBuilder, options.cacheKey)
         }
         if ("openrouter.ai" in host) {
-            requestBuilder.header("HTTP-Referer", "https://github.com/Sanuu7/AndroidHarness")
+            requestBuilder.header("HTTP-Referer", "https://github.com/towkirahmedrony/AgentX")
             requestBuilder.header("X-Title", "Android Harness")
         }
         return requestBuilder.post(body).build()

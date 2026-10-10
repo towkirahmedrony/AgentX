@@ -149,7 +149,7 @@ Run the unit tests with:
 
 ## Developer Repo Wiki
 
-A generated architecture reference covering the agent engine, tools, providers, MCP stack, and workspace layer: [repowiki](https://github.com/Sanuu7/AndroidHarness/tree/main/repowiki). Last updated: 2026-09-06.
+A generated architecture reference covering the agent engine, tools, providers, MCP stack, and workspace layer: [repowiki](https://github.com/towkirahmedrony/AgentX/tree/main/repowiki). Last updated: 2026-09-06.
 
 ## Inspirations
 

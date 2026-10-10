@@ -251,9 +251,14 @@ internal object StreamRetrier {
                 return failure
             }
 
+            // A retry only happens when a failure message was recorded, but
+            // `failure` is a var captured by the stream lambda above, so it
+            // cannot be smart-cast here; bind it once instead.
+            val message = failure
+                ?: return null
             attempt++
             val delayMs = RetryPolicy.delayMs(attempt)
-            emitEvent(AgentEvent.Retrying(attempt, delayMs, retryReason(failure)))
+            emitEvent(AgentEvent.Retrying(attempt, delayMs, retryReason(message)))
             sleep(delayMs)
         }
     }

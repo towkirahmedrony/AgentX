@@ -50,7 +50,7 @@ class PromptBackupCompatibilityTest {
     fun `control characters in prompt text are rejected on import`() {
         assertThrows(IllegalArgumentException::class.java) {
             SettingsBackupValidation.validate(
-                SettingsBackupFile(settings = AppSettings(promptOverrides = PromptOverrides(sections = mapOf("core.keep_simple" to "bad\u0001"))),
+                SettingsBackupFile(settings = AppSettings(promptOverrides = PromptOverrides(sections = mapOf("core.keep_simple" to "bad\u0001")))),
             )
         }
     }

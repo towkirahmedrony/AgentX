@@ -4,6 +4,8 @@ import android.net.Uri
 import com.androidharness.app.AppContainer
 import com.androidharness.app.llm.HarnessProvider
 import com.androidharness.app.llm.ProviderConfig
+import com.androidharness.app.prompt.PromptOverrides
+import com.androidharness.app.prompt.PromptValidation
 import com.androidharness.app.tools.mcp.McpServerConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -37,6 +39,32 @@ object SettingsBackupValidation {
         require(s.maxContextTokens in 8192..2_000_000 && s.maxOutputTokens in 1..1_000_000 && s.maxIterations in 0..10_000) { "Invalid model limits." }
         require(s.webSearchProvider in setOf("keyless", "brave", "tavily")) { "Invalid search provider." }
         require(s.voiceEngine in setOf("inbuilt", "groq")) { "Invalid voice engine." }
+        // Prompt customization: shape and size are enforced here so a hostile or
+        // corrupt payload is rejected at import instead of at compose time.
+        val prompts = s.promptOverrides
+        require(prompts.version == PromptOverrides.CURRENT_VERSION) { "Unsupported prompt customization version." }
+        require(
+            prompts.sections.size <= PromptValidation.MAX_OVERRIDE_COUNT &&
+                prompts.disabledSections.size <= PromptValidation.MAX_OVERRIDE_COUNT &&
+                prompts.toolDescriptions.size <= PromptValidation.MAX_OVERRIDE_COUNT,
+        ) { "Too many prompt customizations." }
+        require(
+            prompts.sections.keys.all { PromptValidation.isSectionId(it) } &&
+                prompts.disabledSections.all { PromptValidation.isSectionId(it) },
+        ) { "Invalid prompt section id." }
+        require(
+            prompts.sections.values.all {
+                it.length <= PromptValidation.MAX_SECTION_CHARS && !PromptValidation.containsDisallowedControl(it)
+            },
+        ) { "Invalid prompt text." }
+        require(
+            prompts.toolDescriptions.keys.all {
+                it.isNotBlank() && it.length <= PromptValidation.MAX_TOOL_NAME_CHARS
+            },
+        ) { "Invalid tool description target." }
+        require(prompts.toolDescriptions.values.all { PromptValidation.validateToolDescription(it) == null }) {
+            "Invalid tool description."
+        }
         val ids = file.providers.map { it.config.id }.toSet() + HarnessProvider.ID
         require(listOfNotNull(s.activeProviderId, s.planningProviderId, s.executionProviderId, s.subagentProviderId).all { it in ids }) { "Missing provider reference." }
         file.providers.forEach {

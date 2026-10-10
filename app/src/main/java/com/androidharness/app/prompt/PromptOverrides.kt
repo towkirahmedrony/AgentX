@@ -48,7 +48,7 @@ data class PromptOverrides(
         val keptTools = toolDescriptions.filterKeys { name ->
             name.isNotBlank() && name.length <= PromptValidation.MAX_TOOL_NAME_CHARS
         }.filterValues { PromptValidation.validateToolDescription(it) == null }
-        return copy(sections = keptSections, disabledSections = keptDisabled, toolDescriptions = keptTools)
+        return copy(sections = keptSections, disabledSections = keptDisabled.toSet(), toolDescriptions = keptTools)
     }
 
     companion object {

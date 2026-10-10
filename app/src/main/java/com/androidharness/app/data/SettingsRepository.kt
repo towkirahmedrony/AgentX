@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.androidharness.app.agent.PermissionMode
 import com.androidharness.app.agent.ThinkingLevel
+import com.androidharness.app.prompt.PromptOverrides
+import com.androidharness.app.prompt.PromptOverridesJson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -88,6 +90,14 @@ data class AppSettings(
     val cavemanInstalled: Boolean = false,
     val cavemanIntensity: com.androidharness.app.caveman.CavemanIntensity = com.androidharness.app.caveman.CavemanIntensity.OFF,
     val cavemanWenyan: Boolean = false,
+    /**
+     * Sparse user customization of the agent prompt. Empty (the default) means
+     * the version-controlled defaults in `prompt/PromptDefaults.kt` are used
+     * verbatim, so an untouched install behaves exactly like a source default.
+     */
+    val promptOverrides: PromptOverrides = PromptOverrides(),
+    /** List skill names without their trigger descriptions to shorten the prompt. */
+    val compactSkillsCatalog: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_MAX_CONTEXT = 1_000_000
@@ -141,6 +151,8 @@ class SettingsRepository(private val context: Context) {
         val CAVEMAN_INSTALLED = booleanPreferencesKey("caveman_installed")
         val CAVEMAN_INTENSITY = stringPreferencesKey("caveman_intensity")
         val CAVEMAN_WENYAN = booleanPreferencesKey("caveman_wenyan")
+        val PROMPT_OVERRIDES = stringPreferencesKey("prompt_overrides")
+        val COMPACT_SKILLS_CATALOG = booleanPreferencesKey("compact_skills_catalog")
     }
 
     val settings: Flow<AppSettings> = context.settingsStore.data.map { prefs ->
@@ -193,6 +205,8 @@ class SettingsRepository(private val context: Context) {
                 runCatching { com.androidharness.app.caveman.CavemanIntensity.valueOf(it) }.getOrNull()
             } ?: com.androidharness.app.caveman.CavemanIntensity.OFF,
             cavemanWenyan = prefs[Keys.CAVEMAN_WENYAN] ?: false,
+            promptOverrides = PromptOverridesJson.decode(prefs[Keys.PROMPT_OVERRIDES]).sanitized(),
+            compactSkillsCatalog = prefs[Keys.COMPACT_SKILLS_CATALOG] ?: false,
         )
     }
 
@@ -217,6 +231,10 @@ class SettingsRepository(private val context: Context) {
             p[Keys.CAVEMAN_INTENSITY] = s.cavemanIntensity.name
             p[Keys.CAVEMAN_WENYAN] = s.cavemanWenyan
             p[Keys.PLANNING_MODELS_ENABLED] = s.planningModelsEnabled
+            p[Keys.COMPACT_SKILLS_CATALOG] = s.compactSkillsCatalog
+            val restoredPrompts = s.promptOverrides.sanitized()
+            if (restoredPrompts.isEmpty) p.remove(Keys.PROMPT_OVERRIDES)
+            else p[Keys.PROMPT_OVERRIDES] = PromptOverridesJson.encode(restoredPrompts)
             listOf(Keys.ACTIVE_PROVIDER to s.activeProviderId, Keys.ACTIVE_MODEL to s.activeModel,
                 Keys.PLANNING_PROVIDER to s.planningProviderId, Keys.PLANNING_MODEL to s.planningModel,
                 Keys.EXECUTION_PROVIDER to s.executionProviderId, Keys.EXECUTION_MODEL to s.executionModel,
@@ -423,6 +441,65 @@ class SettingsRepository(private val context: Context) {
         context.settingsStore.edit { prefs ->
             if (sessionId.isNullOrBlank()) prefs.remove(Keys.LAST_ACTIVE_SESSION)
             else prefs[Keys.LAST_ACTIVE_SESSION] = sessionId
+        }
+    }
+
+    // --- Prompt customization -------------------------------------------
+
+    suspend fun setCompactSkillsCatalog(enabled: Boolean) {
+        context.settingsStore.edit { it[Keys.COMPACT_SKILLS_CATALOG] = enabled }
+    }
+
+    /** Clears every prompt and tool-description override, and turns the compact catalog back off. */
+    suspend fun resetAllPrompts() {
+        context.settingsStore.edit { prefs ->
+            prefs.remove(Keys.PROMPT_OVERRIDES)
+            prefs[Keys.COMPACT_SKILLS_CATALOG] = false
+        }
+    }
+
+    /** Replaces one editable section's text; null restores the default. */
+    suspend fun setPromptSectionOverride(sectionId: String, text: String?) = updatePromptOverrides { current ->
+        if (text == null) current.copy(sections = current.sections - sectionId)
+        else current.copy(sections = current.sections + (sectionId to text))
+    }
+
+    /** Drops both the text override and the disabled flag for one section. */
+    suspend fun resetPromptSection(sectionId: String) = updatePromptOverrides { current ->
+        current.copy(
+            sections = current.sections - sectionId,
+            disabledSections = current.disabledSections - sectionId,
+        )
+    }
+
+    /** Editable sections may be turned off; protected ones are dropped by [PromptOverrides.sanitized]. */
+    suspend fun setPromptSectionEnabled(sectionId: String, enabled: Boolean) = updatePromptOverrides { current ->
+        if (enabled) current.copy(disabledSections = current.disabledSections - sectionId)
+        else current.copy(disabledSections = current.disabledSections + sectionId)
+    }
+
+    /** Replaces one tool's description; null restores the built-in one. */
+    suspend fun setToolDescriptionOverride(toolName: String, description: String?) = updatePromptOverrides { current ->
+        if (description == null) current.copy(toolDescriptions = current.toolDescriptions - toolName)
+        else current.copy(toolDescriptions = current.toolDescriptions + (toolName to description))
+    }
+
+    suspend fun resetToolDescription(toolName: String) = updatePromptOverrides { current ->
+        current.copy(toolDescriptions = current.toolDescriptions - toolName)
+    }
+
+    /**
+     * Read-modify-write of the stored payload. The result is always sanitized so a
+     * retired section id, a protected section or invalid text can never reach disk.
+     */
+    private suspend fun updatePromptOverrides(
+        transform: (PromptOverrides) -> PromptOverrides,
+    ) {
+        context.settingsStore.edit { prefs ->
+            val current = PromptOverridesJson.decode(prefs[Keys.PROMPT_OVERRIDES])
+            val next = transform(current).sanitized()
+            if (next.isEmpty) prefs.remove(Keys.PROMPT_OVERRIDES)
+            else prefs[Keys.PROMPT_OVERRIDES] = PromptOverridesJson.encode(next)
         }
     }
 }

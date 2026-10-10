@@ -243,14 +243,18 @@ class AgentEngine(
         val localChat = com.androidharness.app.local.LocalModelCatalog.isLocal(config.id)
         val agentContextEnabled = !localChat || replySettings.localModelAgentContext
         fun runSystemPrompt(fullAccess: Boolean): String =
-            if (!agentContextEnabled) "" else systemPrompt(workspace, mode, fullAccess = fullAccess, repoMapEnabled = repoMapEnabled) +
-                if (pinnedInstructions.isBlank()) "" else "\n\nPinned user instructions:\n$pinnedInstructions"
+            if (!agentContextEnabled) "" else systemPrompt(
+                workspace, mode, fullAccess = fullAccess, repoMapEnabled = repoMapEnabled,
+                overrides = replySettings.promptOverrides,
+                compactSkillsCatalog = replySettings.compactSkillsCatalog,
+            ) + if (pinnedInstructions.isBlank()) "" else "\n\nPinned user instructions:\n$pinnedInstructions"
         var systemPrompt = runSystemPrompt(false)
         var promptSandboxOff = false
         val runRegistry = registry.withExtra(extraTools)
         val tools = if (!agentContextEnabled) emptyList() else runRegistry.schemas(
             readOnlyOnly = mode == AgentMode.PLAN,
             context = ToolContext(workspace = workspace, sessionId = sessionId),
+            descriptionOverrides = replySettings.promptOverrides.toolDescriptions,
         )
         val chatHistory = if (agentContextEnabled) history else com.androidharness.app.local.LocalChatCodec.plainChatMessages(history)
         val working = (if (localChat) chatHistory.map { it.withImagesResolved() } else trimHistory(
@@ -1174,21 +1178,7 @@ class AgentEngine(
         // reply style applies here too. Code, paths and quoted errors stay exact.
         val caveman = cavemanSettings()
         val system = com.androidharness.app.caveman.CavemanPolicy.apply(
-            (if (actionTools) {
-                "You are a coding subagent inside a coding harness. You may edit files and run tools " +
-                    "to complete the delegated task, under the parent run's permission mode. "
-            } else {
-                "You are a read-only research subagent inside a coding harness. " +
-                    "Explore the workspace with the tools you have (read_file, list_dir, " +
-                    "search_files, grep, file_info, web_fetch/search, and CodeGraph when available) to answer the task. " +
-                    "You must not modify anything. "
-            }) +
-                "You cannot ask questions or spawn subagents; if something " +
-                "is ambiguous, state your assumption and continue. " +
-                "When reporting file properties like newlines or byte counts, inspect with file_info rather than inferring from line counts. " +
-                "Finish with a complete, self-contained answer: your final message is the " +
-                "ONLY thing returned to the caller, so include file paths, line references " +
-                "and concrete details, and no meta-commentary.",
+            com.androidharness.app.prompt.PromptComposer.subagentSystemPrompt(actionTools),
             installed = caveman.cavemanInstalled,
             intensity = caveman.cavemanIntensity,
             wenyan = caveman.cavemanWenyan,
@@ -1500,7 +1490,11 @@ class AgentEngine(
         return estimateContext(
             history,
             com.androidharness.app.caveman.CavemanPolicy.apply(
-                systemPrompt(workspace, mode, fullAccess, repoMapEnabled),
+                systemPrompt(
+                    workspace, mode, fullAccess, repoMapEnabled,
+                    overrides = caveman.promptOverrides,
+                    compactSkillsCatalog = caveman.compactSkillsCatalog,
+                ),
                 installed = caveman.cavemanInstalled,
                 intensity = caveman.cavemanIntensity,
                 wenyan = caveman.cavemanWenyan,
@@ -1614,120 +1608,96 @@ class AgentEngine(
         return hints.distinct()
     }
 
+    /**
+     * The assembled main-agent prompt. The text lives in version-controlled
+     * [com.androidharness.app.prompt.PromptDefaults] sections; [overrides] can
+     * replace editable ones (when they still validate) but never the protected
+     * rules, which always come from the defaults.
+     */
     private fun systemPrompt(
         workspace: WorkspaceFs,
         mode: AgentMode,
         fullAccess: Boolean,
         repoMapEnabled: Boolean = true,
-    ): String {
-        val agentsFile = readWorkspaceDoc(workspace, "AGENTS.md")
-            ?: readWorkspaceDoc(workspace, "HARNESS.md")
-        val memory = readWorkspaceDoc(workspace, "memory")
+        overrides: com.androidharness.app.prompt.PromptOverrides = com.androidharness.app.prompt.PromptOverrides(),
+        compactSkillsCatalog: Boolean = false,
+    ): String = com.androidharness.app.prompt.PromptComposer.compose(
+        promptFacts(workspace, mode, fullAccess, repoMapEnabled, compactSkillsCatalog),
+        overrides,
+    ).text
 
-        val sb = StringBuilder()
-        sb.append(
-            """
-You are AgentX, an autonomous coding agent running inside an Android app.
-The user's workspace is: ${workspace.displayPath}
-
-Rules:
-- All tool paths are relative to the workspace root. Paths outside the workspace are blocked.
-- Use list_dir/search_files/grep/read_file to explore before making changes.
-- Browser screenshots save under .harness/screenshots/ as timestamped JPEGs (e.g. .harness/screenshots/20260903_120000.jpg). To look up past screenshots, list the directory with list_dir path=".harness/screenshots". Use read_image with the screenshot path or filename to inspect visual content.
-- A message may reference files as @path (for example @src/Main.kt): the user is pointing at those exact files, so read them before acting on the request.
-- Prefer edit_file/multi_edit for targeted changes to existing files; use write_file to create or fully rewrite files; use apply_patch for multi-file diffs.
-- Use todo_write to track multi-step work and keep statuses current.
-- Use ask_user whenever a decision is genuinely the user's to make instead of guessing.
-- Independent read-only tool calls may run concurrently. Mutating, interactive, and browser-state calls keep strict ordering. Never make one read-only call depend on the result of another call in the same batch; split dependent work into another tool round.
-- Mutating calls see the workspace after earlier ordered calls complete. A patch or diff pre-computed before an earlier edit can be stale by the time it runs, so build patches right before applying them.
-- Text files follow the POSIX convention: the last line ends with a newline terminator. When patching or editing, never add an extra empty line for the file's final newline.
-- When reporting file properties like newlines or byte counts, verify with a byte check (file_info or shell tail -c 3 | xxd) rather than inferring from line counts.
-- For Android logs, exceptions, or app crash investigations, use read_logcat instead of raw shell logcat commands. It supports level, tag, package_name, and buffer filtering.
-- For broad exploration whose raw output would flood this conversation (finding all usages, mapping a codebase, comparing many files), delegate to the task tool: it runs a read-only subagent and returns only the final answer. When several independent explorations are needed, issue ALL task calls in the SAME message: they run concurrently.
-
-""".trim()
+    /**
+     * Settings -> Prompts preview: the same prompt this engine would send under
+     * the given runtime conditions, with the stored overrides applied, plus the
+     * per-section breakdown the preview lists.
+     */
+    suspend fun previewPrompt(
+        workspace: WorkspaceFs,
+        mode: AgentMode,
+        fullAccess: Boolean,
+        repoMapEnabled: Boolean = true,
+    ): com.androidharness.app.prompt.PromptComposer.ComposedPrompt {
+        val settings = cavemanSettings()
+        return com.androidharness.app.prompt.PromptComposer.compose(
+            promptFacts(workspace, mode, fullAccess, repoMapEnabled, settings.compactSkillsCatalog),
+            settings.promptOverrides,
         )
-        if (workspace is com.androidharness.app.workspace.SshFs) {
-            sb.append("- This is an SSH workspace at ${workspace.root}. All file tools, checkpoints, shell commands, Git, builds and background jobs operate on that host. Use its installed tools and Git credentials. Never use local Android paths or assume the built-in toolchain is available remotely. Inspect uncertain command results before retrying any modifying operation.\n")
-        } else if (workspace.shellRoot != null) {
-            if (linuxEnv.isReady) {
-                sb.append("- The shell tool runs a full Linux environment (bash, git, python, node and more) with the workspace as its working directory. Call commands by their plain names (python3, git, node, ls, …): the harness launches them correctly on every execution tier. Use shell_background for long-running servers. If a required CLI package is missing (e.g. ripgrep, jq, clang, rust, tmux, tree, openjdk-17), search for it with pkg_search and install it with pkg_install (do NOT run 'apt' or 'pkg' directly in shell). Package installation will always prompt the user with a confirmation warning before downloading.\n")
-            } else {
-                sb.append("- The shell tool currently runs Android's toybox sh (a real Linux environment can be installed). If a task needs git, python, node, compilers, curl/ssh or similar, do NOT retry with toybox: call the shell tool anyway with the command you need; the harness will show the user an install button in the chat. For everything else use shell_background for long-running servers.\n")
-            }
-        } else {
-            sb.append("- This workspace has no real filesystem path (cloud/SAF). File tools still work. Do NOT call shell, shell_background, or git tools, they will fail. Tell the user to switch to a device folder or the app workspace if they need a shell.\n")
-        }
+    }
 
-        if (workspace !is com.androidharness.app.workspace.SshFs) {
-            // Shizuku guidance: tell the agent the current state so it can guide the user.
-            when {
-                shizuku.isGranted() -> sb.append("- Shizuku is connected with ADB-shell privileges: the shell tool automatically runs as the shell user whenever the working directory needs it (system paths, shared storage), with the same toolchain. Just use shell normally.\n")
-                shizuku.state.value == com.androidharness.app.data.env.ShizukuState.RUNNING_NO_PERMISSION -> sb.append("- Shizuku is running but AgentX hasn't been granted access yet. If a task needs ADB-level shell access (edit system files, access any folder, etc.), tell the user to go to Settings → Terminal and tap \"Grant Shizuku access\".\n")
-                shizuku.state.value == com.androidharness.app.data.env.ShizukuState.NOT_RUNNING -> sb.append("- Shizuku is installed but not running. If a task needs ADB-level shell access, tell the user to open the Shizuku app, start the service, then in AgentX go to Settings → Terminal and tap \"Refresh status\" followed by \"Grant Shizuku access\".\n")
-                else -> {} // NOT_INSTALLED: no mention; don't distract the agent.
-            }
-            sb.append(
-                "- Shell environment rules (IMPORTANT): always call commands by plain name (ls, grep, head, python3, git, node…). NEVER work around the environment yourself: do not invoke /system/bin/linker64, /apex/.../linker64, or /system/bin/toybox directly, and do not craft alternate PATHs. The harness already makes every toolchain binary runnable in every tier. " +
-                    "If a basic command fails with \"Permission denied\" or exit code 126/127, the environment is misconfigured on this device: run the env_status tool once, tell the user what it reports, and stop retrying command variants.\n",
-            )
-            sb.append("- /data/local/tmp is readable only by the shell user: never try to inspect it from the app tier, and never conclude Shizuku/toolchain state from files there; use env_status.\n")
+    /**
+     * Gathers the already-resolved runtime facts the composer needs. Reads only:
+     * the composer stays a pure function of this data, which is what keeps the
+     * assembled prompt deterministic and testable without an Android device.
+     */
+    private fun promptFacts(
+        workspace: WorkspaceFs,
+        mode: AgentMode,
+        fullAccess: Boolean,
+        repoMapEnabled: Boolean,
+        compactSkillsCatalog: Boolean,
+    ): com.androidharness.app.prompt.PromptFacts {
+        val ssh = workspace as? com.androidharness.app.workspace.SshFs
+        val kind = when {
+            ssh != null -> com.androidharness.app.prompt.WorkspaceKind.SSH
+            workspace.shellRoot == null -> com.androidharness.app.prompt.WorkspaceKind.NO_SHELL
+            linuxEnv.isReady -> com.androidharness.app.prompt.WorkspaceKind.SHELL_READY
+            else -> com.androidharness.app.prompt.WorkspaceKind.SHELL_TOYBOX
         }
-        if (fullAccess && workspace !is com.androidharness.app.workspace.SshFs) {
-            sb.append(
-                "- FULL ACCESS MODE is active: the workspace sandbox is lifted. File tools may read and write ANY path on the device (absolute paths work), the shell has no command denylist, and cwd may be any directory. The user chose this deliberately; no permission prompts will appear. Work outside the workspace only when the task requires it, and stay careful with system directories (/system, /data/system, /vendor): a mistake there can break the device.\n",
-            )
+        // Shizuku guidance: tell the agent the current state so it can guide the user.
+        val shizukuFact = when {
+            ssh != null -> com.androidharness.app.prompt.ShizukuFact.ABSENT
+            shizuku.isGranted() -> com.androidharness.app.prompt.ShizukuFact.GRANTED
+            shizuku.state.value == com.androidharness.app.data.env.ShizukuState.RUNNING_NO_PERMISSION ->
+                com.androidharness.app.prompt.ShizukuFact.RUNNING_NO_PERMISSION
+            shizuku.state.value == com.androidharness.app.data.env.ShizukuState.NOT_RUNNING ->
+                com.androidharness.app.prompt.ShizukuFact.NOT_RUNNING
+            else -> com.androidharness.app.prompt.ShizukuFact.ABSENT
         }
-        sb.append("- After tool calls complete, either continue with more tool calls or give the user the actual outcome. Lead with the result, not process narration. Mention only meaningful progress.\n")
-        sb.append("- Ground every completion claim in tool results you actually received. Never say tests/builds/checks passed unless the corresponding tool call succeeded. If a check failed or was not run, say that plainly.\n")
-        sb.append("- Keep simple asks simple. For coding work, the final answer should usually cover: what changed, what you verified, and anything still unresolved. Omit empty sections and routine implementation chatter.\n")
-        sb.append("- If a deterministic tool call fails, inspect the current state and change the inputs before retrying. Do not repeat the same failing call unchanged. Edit failures should trigger a fresh read of the affected file.\n")
-        sb.append("- Never invent file contents you have not read.\n")
-        sb.append("- Browser automation: when previewing or interacting with web projects via browser tools, start a local dev/http server using shell_background (e.g. python3 -m http.server 8000, npm run dev, or similar) and navigate to http://localhost:<port>.\n")
-        sb.append("- Mobile UI formatting: responses are displayed on a phone touchscreen. Format text cleanly and compactly. Use standard markdown tables (| Col 1 | Col 2 |) or concise bullet lists rather than wide ASCII terminal boxes. When creating, editing, or serving HTML/web projects, host them on localhost via shell_background and include an explicit preview directive `::web-preview{target=\"http://localhost:<port>\"}` to offer the user a one-tap in-app web preview button.\n")
-
-        if (mode == AgentMode.PLAN) {
-            sb.append(
-                "\nPLAN MODE IS ACTIVE:\n" +
-                    "- You are in read-only planning mode. All mutating tools (modifying files, running state-changing commands) are strictly disabled.\n" +
-                    "- Explore the codebase using read-only tools to understand the task.\n" +
-                    "- Formulate a complete, clear, step-by-step implementation plan and output it in your final response text.\n" +
-                    "- CRITICAL: Do NOT call `ask_user` to ask if you should proceed, build, or implement the plan. The user interface automatically displays native 'Approve & execute' and 'Discard' buttons when you finish your turn.\n" +
-                    "- Do NOT include `::web-preview` directives and do not claim anything was created or hosted: nothing exists yet, so a preview would open an empty page.\n" +
-                    "- Once you present your plan in your text response, STOP immediately. Do not attempt to call any mutating tools or ask for permission.\n"
-            )
-        }
-        val catalog = skills.catalog()
-        if (catalog.isNotBlank()) sb.append('\n').append(catalog).append('\n')
-        agentsFile?.let {
-            sb.append("\n# AGENTS.md (project instructions)\n").append(it).append('\n')
-        }
-        memory?.let {
-            sb.append("\n# Agent memory (from previous sessions)\n").append(it).append('\n')
-        }
-        // Topic files are only listed by name: long-form notes stay on disk
-        // and out of the prompt; the model retrieves them on demand.
+        // Topic files are only listed by name: long-form notes stay on disk and
+        // out of the prompt; the model retrieves them on demand.
         val memoryTopics = runCatching {
             com.androidharness.app.tools.listMemoryTopics(workspace)
         }.getOrDefault(emptyList())
-        if (memoryTopics.isNotEmpty()) {
-            sb.append("\nLong-term memory topic files on disk (retrieve with memory_read, search with memory_search): ")
-                .append(memoryTopics.joinToString(", ")).append('\n')
-        }
-        val todos = TodoPrompt.format(todoStore?.todos?.value.orEmpty())
-        if (todos.isNotBlank()) {
-            sb.append('\n').append(todos)
-        }
-        if (repoMapEnabled) {
-            val map = runCatching {
-                kotlinx.coroutines.runBlocking { repoMap?.getMap(workspace, maxChars = 10_000) }
-            }.getOrNull()
-            if (!map.isNullOrBlank()) {
-                sb.append("\n# Repository Map (codebase index)\n").append(map).append('\n')
-            }
-        }
-        return sb.toString()
+        val repositoryMap = if (!repoMapEnabled) null else runCatching {
+            kotlinx.coroutines.runBlocking { repoMap?.getMap(workspace, maxChars = 10_000) }
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+        return com.androidharness.app.prompt.PromptFacts(
+            workspaceKind = kind,
+            workspacePath = workspace.displayPath,
+            workspaceRoot = ssh?.root ?: workspace.displayPath,
+            shizuku = shizukuFact,
+            fullAccess = fullAccess,
+            planMode = mode == AgentMode.PLAN,
+            skillsIndex = runCatching { skills.catalogIndex() }.getOrDefault("").takeIf { it.isNotBlank() },
+            agentsMd = readWorkspaceDoc(workspace, "AGENTS.md") ?: readWorkspaceDoc(workspace, "HARNESS.md"),
+            memory = readWorkspaceDoc(workspace, "memory"),
+            memoryTopics = memoryTopics,
+            todos = TodoPrompt.format(todoStore?.todos?.value.orEmpty()).takeIf { it.isNotBlank() },
+            repositoryMap = repositoryMap,
+            compactSkillsCatalog = compactSkillsCatalog,
+        )
     }
+
 
     private fun readWorkspaceDoc(workspace: WorkspaceFs, name: String): String? = runCatching {
         when (name) {

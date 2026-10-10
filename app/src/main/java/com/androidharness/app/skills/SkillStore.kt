@@ -34,11 +34,18 @@ class SkillStore(
 
     fun enabled(): List<SkillMeta> = list().filter { it.enabled }
 
-    fun catalog(): String {
+    fun catalog(): String = buildSkillsPromptBlock(catalogIndex())
+
+    /**
+     * Just the catalog index body (category/skill lines) without the surrounding
+     * `## Skills (mandatory)` / `<available_skills>` block. The prompt composer
+     * renders that wrapper as version-controlled sections.
+     */
+    fun catalogIndex(): String {
         val enabled = enabled()
         if (enabled.isEmpty()) return ""
         val grouped = enabled.groupBy { it.category }
-        val index = buildString {
+        return buildString {
             for (category in grouped.keys.sorted()) {
                 append("  ").append(category).append(":\n")
                 for (skill in grouped.getValue(category).sortedBy { it.name }) {
@@ -46,7 +53,6 @@ class SkillStore(
                 }
             }
         }
-        return buildSkillsPromptBlock(index)
     }
 
     fun slashNames(): Set<String> = enabled().map { it.name }.toSet()

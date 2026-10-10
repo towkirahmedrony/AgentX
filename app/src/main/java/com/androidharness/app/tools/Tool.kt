@@ -51,11 +51,21 @@ class ToolRegistry(private val tools: List<Tool>) {
     fun withExtra(extra: List<Tool>): ToolRegistry =
         if (extra.isEmpty()) this else ToolRegistry(tools + extra)
 
-    fun schemas(readOnlyOnly: Boolean = false, context: ToolContext? = null) = byName.values
+    /**
+     * [descriptionOverrides] replaces a tool's description only: names, ordering,
+     * schemas and availability are untouched, so customization can never change
+     * what a tool does. Unknown names and blank values are ignored.
+     */
+    fun schemas(
+        readOnlyOnly: Boolean = false,
+        context: ToolContext? = null,
+        descriptionOverrides: Map<String, String> = emptyMap(),
+    ) = byName.values
         .filter { (!readOnlyOnly || it.isReadOnly) && (context == null || it.isAvailable(context)) }
         .sortedBy { it.name }
         .map {
-            com.androidharness.app.llm.ToolSchema(it.name, it.description, it.parametersSchema)
+            val custom = descriptionOverrides[it.name]?.takeIf { value -> value.isNotBlank() }
+            com.androidharness.app.llm.ToolSchema(it.name, custom ?: it.description, it.parametersSchema)
         }
 
     companion object {

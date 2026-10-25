@@ -1,0 +1,164 @@
+name: Build APK
+
+# Builds the AgentX debug APK on GitHub-hosted runners and publishes it as a
+# downloadable workflow artifact. Compilation never happens locally.
+#
+# Reuses the toolchain proven by nightly.yml (same JDK, Gradle setup action and
+# pinned NDK) so both workflows configure the native build identically.
+
+on:
+  # Manual runs from the Actions tab.
+  workflow_dispatch: {}
+  # Every push to main.
+  push:
+    branches:
+      - main
+
+# The workflow only reads the repository and uploads artifacts.
+permissions:
+  contents: read
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned in app/build.gradle.kts. The runner image does not ship this version,
+  # and AGP refuses to configure the native build (libharness_local.so) without it.
+  PINNED_NDK: "27.2.12479018"
+  APP_MODULE: ":app"
+  APK_DIR: app/build/outputs/apk/debug
+
+jobs:
+  build:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # AGP 9.x and Gradle 9.x need a modern JDK; 21 matches the existing CI.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle (caching)
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Validate the Gradle wrapper
+        run: |
+          set -euo pipefail
+          if [ ! -f gradlew ]; then
+            echo "::error::gradlew is missing from the repository root."
+            exit 1
+          fi
+          if [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
+            echo "::error::gradle/wrapper/gradle-wrapper.properties is missing."
+            exit 1
+          fi
+          # Some clones and zip exports drop the executable bit.
+          chmod +x gradlew
+          ./gradlew --version
+
+      - name: Install the pinned NDK
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found at $SDKMANAGER; the Android SDK is not set up on this runner."
+            exit 1
+          fi
+          "$SDKMANAGER" --install "ndk;${PINNED_NDK}"
+
+      - name: Build debug APK
+        run: |
+          set -o pipefail
+          ./gradlew "${APP_MODULE}:assembleDebug" --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Verify the APK was generated
+        id: apk
+        run: |
+          set -euo pipefail
+          APK=$(find "$APK_DIR" -maxdepth 1 -type f -name '*.apk' -print -quit)
+          if [ -z "$APK" ]; then
+            echo "::error::No APK was generated in $APK_DIR. Gradle reported success but produced no installable file."
+            exit 1
+          fi
+          ls -lh "$APK"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: AgentX-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: error
+
+      # Explain what kind of failure this is; Gradle's own FAILURE block stays in the log.
+      - name: Classify the failure
+        if: failure()
+        run: |
+          set +e
+          LOG=build.log
+          if [ ! -f "$LOG" ]; then
+            echo "::error::The APK was not built and no Gradle log was captured; check the earlier steps."
+            exit 0
+          fi
+          if grep -qE "Unsupported class file major version|Unsupported Java|invalid source release|UnsupportedClassVersionError|requires Java" "$LOG"; then
+            KIND="Java/JDK: the toolchain rejected the runner's JDK."
+          elif grep -qE "Failed to install the following SDK components|SDK location not found|ndk;|CMake|cmake" "$LOG"; then
+            KIND="Android SDK/NDK: the SDK components required by app/build.gradle.kts are missing."
+          elif grep -qE "Could not resolve|Could not download|Could not GET|No matching variant|Could not find " "$LOG"; then
+            KIND="Dependencies: Gradle could not resolve a declared dependency."
+          elif grep -qE "^e: |error: |Compilation error|:app:compile[A-Za-z]*Kotlin FAILED|:app:compile[A-Za-z]*JavaWithJavac FAILED" "$LOG"; then
+            KIND="Source code: Kotlin/Java compilation failed."
+          elif grep -qE "^FAILURE: Build failed|^> Task .* FAILED" "$LOG"; then
+            KIND="Gradle: a task failed; see the task name in the log."
+          else
+            KIND="Unknown: inspect the Gradle log attached to this run."
+          fi
+          echo "::error::APK build failed — $KIND"
+          {
+            echo "### APK build failed"
+            echo ""
+            echo "**Category:** $KIND"
+            echo ""
+            echo '```'
+            grep -A 20 "^FAILURE:" "$LOG" | head -n 40
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect build diagnostics
+        if: failure()
+        run: |
+          set +e
+          mkdir -p diagnostics
+          {
+            echo "== Java =="
+            java -version
+            echo
+            echo "== Gradle =="
+            ./gradlew --version
+            echo
+            echo "== Installed SDK packages =="
+            SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --list_installed
+          } > diagnostics/environment.txt 2>&1 || true
+          cp -r app/build/reports diagnostics/reports 2>/dev/null || true
+          cp -r app/build/outputs/logs diagnostics/outputs-logs 2>/dev/null || true
+
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: AgentX-build-diagnostics
+          path: |
+            build.log
+            diagnostics
+          retention-days: 7
+          if-no-files-found: warn

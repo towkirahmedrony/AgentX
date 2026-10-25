@@ -297,7 +297,7 @@ class AgentEngine(
             (chatOnlyTools.firstOrNull { it.name == "browser_read" } as? com.androidharness.app.tools.BrowserReadTool)
                 ?.forBudget(scopedSearch?.budget())
         } else null
-        val runRegistry = (if (conversation.isChat) registry.withExtra(chatOnlyTools + listOfNotNull(scopedSearch, scopedFetch, scopedBrowser)) else registry.withExtra(extraTools))
+        val runRegistry = (if (conversation.isChat) registry.withExtra(chatOnlyTools + listOfNotNull(scopedSearch, scopedFetch, scopedBrowser)) else registry.withExtra(extraTools + com.androidharness.app.tools.ToolsEnableTool()))
             .restrictedTo(conversation.allowedTools)
             .let { if (conversation.isChat && searchDepth == com.androidharness.app.data.SearchDepth.OFF) it.without(setOf("web_search")) else it }
             .let { if (memoryOn) it else it.without(memoryToolNames) }
@@ -368,7 +368,14 @@ class AgentEngine(
             val tools = if (!agentContextEnabled && !conversation.isChat) emptyList() else runRegistry.schemas(
                 readOnlyOnly = mode == AgentMode.PLAN,
                 context = ToolContext(execWorkspace, sandboxOff, sessionId),
-            )
+            ).let { all ->
+                if (conversation.isChat) all else com.androidharness.app.tools.ToolGroups.filter(
+                    all,
+                    userTexts = working.filter { it.role == Role.USER }.map { it.text },
+                    calledTools = working.flatMap { m -> m.toolCalls.map { it.name } },
+                    enableArgs = working.flatMap { m -> m.toolCalls.filter { it.name == com.androidharness.app.tools.ToolGroups.ENABLE_TOOL }.map { it.argumentsJson } },
+                )
+            }
             val environment = if (agentContextEnabled || conversation.isChat)
                 runtimeEnvironment(workspace, sessionId, mode, effectiveMode, tools, conversation.isChat) else ""
             val requestSystemPrompt = if (conversation.isChat) systemPrompt + environment else if (!agentContextEnabled) "" else com.androidharness.app.caveman.CavemanPolicy.apply(

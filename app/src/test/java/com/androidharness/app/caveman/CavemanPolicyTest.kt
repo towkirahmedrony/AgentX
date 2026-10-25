@@ -13,7 +13,7 @@ import org.junit.Test
  */
 class CavemanPolicyTest {
 
-    private val harnessPrompt = "You are AndroidHarness, an autonomous coding agent."
+    private val harnessPrompt = "You are AgentX, an autonomous coding agent."
 
     @Test
     fun `off produces no style block`() {

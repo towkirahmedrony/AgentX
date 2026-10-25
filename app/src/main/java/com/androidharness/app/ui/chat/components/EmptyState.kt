@@ -249,7 +249,7 @@ internal fun EmptyState(
     }
 }
 
-// Verified creator profile: Sanuu, creator of AndroidHarness.
+// Verified creator profile: Sanuu, creator of AgentX.
 private const val DONATION_URL = "https://buymeacoffee.com/sanuj7"
 
 @Composable

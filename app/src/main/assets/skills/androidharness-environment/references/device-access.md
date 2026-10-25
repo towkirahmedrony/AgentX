@@ -23,7 +23,7 @@ The live context reports a snapshot of these separately. The executor rechecks i
 
 - Not installed: no Shizuku transport.
 - Installed but stopped: the user must start it.
-- Running without permission: AndroidHarness needs the user's Shizuku authorization.
+- Running without permission: AgentX needs the user's Shizuku authorization.
 - Permission granted while binding, unbound or failed: the privileged runner is not ready.
 - A bound ready runner or compatibility-ready runner is callable. Compatibility mode is an alternative connection backend; it does not confer more permission.
 

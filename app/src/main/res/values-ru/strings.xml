@@ -139,9 +139,9 @@
     <string name="settings_search_license_title">"Лицензия"</string>
     <string name="settings_search_license_desc">"О приложении · Лицензия MIT и условия для форков"</string>
     <string name="settings_search_credits_title">"Благодарности"</string>
-    <string name="settings_search_credits_desc">"О приложении · Открытые проекты, используемые в AndroidHarness"</string>
+    <string name="settings_search_credits_desc">"О приложении · Открытые проекты, используемые в AgentX"</string>
     <string name="settings_search_author_title">"Автор"</string>
-    <string name="settings_search_author_desc">"О приложении · Кто создаёт AndroidHarness и как с ним связаться"</string>
+    <string name="settings_search_author_desc">"О приложении · Кто создаёт AgentX и как с ним связаться"</string>
     <string name="settings_anchor_progress_bar_style">"Стиль индикатора прогресса"</string>
     <string name="settings_anchor_fallbacks">"Резервные модели"</string>
     <string name="settings_anchor_continue_chatgpt">"Продолжить с ChatGPT"</string>
@@ -287,10 +287,10 @@
     <string name="settings_restore_reconnect_title">"Подключить восстановленные чаты"</string>
     <string name="settings_restore_reconnect_note">"Доступ только на чтение остаётся таким же. Для чатов с несколькими рабочими областями нужно указать отдельную папку для каждой."</string>
     <string name="settings_accounts_using_plan">"Вы используете подписку ChatGPT"</string>
-    <string name="settings_accounts_using_plan_desc">"Поддерживаемые запросы AndroidHarness используют вашу подписку ChatGPT или кредиты. Просматривайте расход и управляйте доступом приложения в настройках ChatGPT."</string>
+    <string name="settings_accounts_using_plan_desc">"Поддерживаемые запросы AgentX используют вашу подписку ChatGPT или кредиты. Просматривайте расход и управляйте доступом приложения в настройках ChatGPT."</string>
     <string name="settings_action_got_it">"Понятно"</string>
     <string name="settings_accounts_signout_title">"Выйти из этого аккаунта?"</string>
-    <string name="settings_accounts_signout_message">"Аккаунт будет отключён от AndroidHarness и исключён из автоматического переключения. Вы сможете войти снова позже."</string>
+    <string name="settings_accounts_signout_message">"Аккаунт будет отключён от AgentX и исключён из автоматического переключения. Вы сможете войти снова позже."</string>
     <string name="settings_action_continue">"Продолжить"</string>
     <string name="settings_progress_bar_subtitle">"Выберите вид индикаторов прогресса. Изменение применяется сразу."</string>
     <string name="settings_provider_select">"Выбрать"</string>
@@ -881,7 +881,7 @@
     <string name="chat_handoff_picker_note">"Выберите место для работы. План из чата будет перенесён."</string>
     <string name="chat_handoff_close">"Закрыть выбор рабочей области"</string>
     <string name="chat_handoff_no_workspace">"Добавьте рабочую область в разделе «Код», чтобы продолжить."</string>
-    <string name="chat_share_target">"AndroidHarness · Чат"</string>
+    <string name="chat_share_target">"AgentX · Чат"</string>
     <string name="chat_share_title">"Поделиться в чате"</string>
     <string name="chat_share_review">"Проверьте полученные материалы, выберите чат и добавьте вопрос. Отправка произойдёт только после нажатия кнопки отправки в чате."</string>
     <string name="chat_share_new">"Новый чат"</string>

@@ -179,9 +179,9 @@ class ShizukuCompatibilityDeviceTest {
                 assertTrue(manager.privilegedCanAccess(directory))
                 assertEquals("data", command(manager, "cat '$directory/c'").output.trim())
                 assertTrue(command(manager, "pm list packages ${context.packageName}").output.contains("package:${context.packageName}"))
-                command(manager, "log -t AndroidHarnessCompatTest '$message'")
+                command(manager, "log -t AgentXCompatTest '$message'")
                 val log = requireNotNull(manager.runPrivileged(arrayOf("/system/bin/logcat", "-d", "-t", "50",
-                    "AndroidHarnessCompatTest:I", "*:S"), null, null, 5_000))
+                    "AgentXCompatTest:I", "*:S"), null, null, 5_000))
                 assertTrue(log.output, log.output.contains(message))
             } finally { command(manager, "rm -rf '$directory'") }
         }

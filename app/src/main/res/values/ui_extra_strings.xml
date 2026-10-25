@@ -104,9 +104,9 @@
     <string name="ui_0_to_59">"0 to 59"</string>
     <string name="ui_preferred">"%1$s · %2$s preferred"</string>
     <string name="ui_blocked">"Blocked"</string>
-    <string name="ui_androidharness_is_locked">"AndroidHarness is Locked"</string>
+    <string name="ui_androidharness_is_locked">"AgentX is Locked"</string>
     <string name="ui_unlock_with_biometric_or_device_credentials_to">"Unlock with biometric or device credentials to access your workspaces and chats."</string>
-    <string name="ui_unlock_androidharness">"Unlock AndroidHarness"</string>
+    <string name="ui_unlock_androidharness">"Unlock AgentX"</string>
     <string name="ui_confirm_your_fingerprint_face_or_pin">"Confirm your fingerprint, face, or PIN"</string>
     <string name="ui_set_up_screen_lock_pin_fingerprint_in">"Set up screen lock (PIN/fingerprint) in device Settings first"</string>
     <string name="ui_biometric_authentication_not_supported_on_this_device">"Biometric authentication not supported on this device"</string>
@@ -181,7 +181,7 @@
     <string name="settings_language_system_description">Follow your device language. Unsupported languages use English.</string>
     <string name="settings_language_english" translatable="false">English</string>
     <string name="settings_language_chinese" translatable="false">简体中文</string>
-    <string name="settings_language_contribute_title">Help translate AndroidHarness</string>
+    <string name="settings_language_contribute_title">Help translate AgentX</string>
     <string name="settings_language_contribute_description">Missing your language or spotted a translation that could be better? Contribute on POEditor. Even a few phrases help.</string>
     <string name="settings_language_contribute_action">Contribute translations</string>
     <string name="settings_language_contribute_release_note">Community translations are reviewed before they appear in an app update.</string>
@@ -203,25 +203,25 @@
     <string name="settings_agent_live_updates_device">%1$s · %2$s</string>
     <string name="settings_agent_live_updates_usage">The card appears only while the agent is actually working, and shows Approve/Deny when the agent needs you. Idle background services are never promoted.</string>
     <string name="settings_agent_live_updates_open">Open notification settings</string>
-    <string name="settings_live_state_ready">Live updates are allowed for AndroidHarness on this device.</string>
-    <string name="settings_live_state_blocked">Android has not allowed live updates for AndroidHarness yet. Enable them in the system settings below.</string>
+    <string name="settings_live_state_ready">Live updates are allowed for AgentX on this device.</string>
+    <string name="settings_live_state_blocked">Android has not allowed live updates for AgentX yet. Enable them in the system settings below.</string>
     <string name="settings_live_state_unsupported">Live updates need Android 16 or newer.</string>
     <string name="settings_live_vendor_samsung">Samsung One UI</string>
-    <string name="settings_live_steps_samsung">Samsung shows these as Now Bar cards. If the card only appears in the notification shade, open Developer options and turn on “Live notifications for all apps”, then reopen AndroidHarness.</string>
+    <string name="settings_live_steps_samsung">Samsung shows these as Now Bar cards. If the card only appears in the notification shade, open Developer options and turn on “Live notifications for all apps”, then reopen AgentX.</string>
     <string name="settings_live_vendor_google">Pixel / stock Android</string>
-    <string name="settings_live_steps_google">Pixel and stock Android 16 show these as Live updates on the lock screen and in the status bar. Allow live updates for AndroidHarness in notification settings.</string>
+    <string name="settings_live_steps_google">Pixel and stock Android 16 show these as Live updates on the lock screen and in the status bar. Allow live updates for AgentX in notification settings.</string>
     <string name="settings_live_vendor_xiaomi">Xiaomi HyperOS</string>
-    <string name="settings_live_steps_xiaomi">HyperOS may not surface third-party live updates yet. AndroidHarness notifications still work; if HyperOS adds support this card will appear automatically.</string>
+    <string name="settings_live_steps_xiaomi">HyperOS may not surface third-party live updates yet. AgentX notifications still work; if HyperOS adds support this card will appear automatically.</string>
     <string name="settings_live_vendor_color_os">OnePlus / OPPO / realme</string>
-    <string name="settings_live_steps_color_os">ColorOS and OxygenOS call these Live alerts. Allow live alerts for AndroidHarness in Settings → Notifications &amp; status bar, then start a run.</string>
+    <string name="settings_live_steps_color_os">ColorOS and OxygenOS call these Live alerts. Allow live alerts for AgentX in Settings → Notifications &amp; status bar, then start a run.</string>
     <string name="settings_live_vendor_origin_os">vivo / iQOO</string>
     <string name="settings_live_steps_origin_os">OriginOS may not surface third-party live updates yet. The ongoing notification still works, and this card appears automatically once it does.</string>
     <string name="settings_live_vendor_magic_os">HONOR MagicOS</string>
     <string name="settings_live_steps_magic_os">MagicOS may not surface third-party live updates yet. The ongoing notification still works, and this card appears automatically once it does.</string>
     <string name="settings_live_vendor_near_stock">Near-stock Android</string>
-    <string name="settings_live_steps_near_stock">This device runs near-stock Android 16. Allow live updates for AndroidHarness in notification settings.</string>
+    <string name="settings_live_steps_near_stock">This device runs near-stock Android 16. Allow live updates for AgentX in notification settings.</string>
     <string name="settings_live_vendor_other">Android</string>
-    <string name="settings_live_steps_other">If your Android 16 device supports live updates, allow them for AndroidHarness in notification settings. Otherwise the ongoing notification still works.</string>
+    <string name="settings_live_steps_other">If your Android 16 device supports live updates, allow them for AgentX in notification settings. Otherwise the ongoing notification still works.</string>
     <string name="settings_search_live_updates_title">Live activities</string>
     <string name="settings_search_live_updates_desc">Show the current run in the status bar, on the lock screen and in live activities</string>
     <string name="settings_tts_output">Voice output</string>
@@ -248,7 +248,7 @@
     <string name="settings_tts_always_speak">Speak every reply</string>
     <string name="settings_tts_always_speak_desc">Read each new assistant reply aloud automatically.</string>
     <string name="settings_tts_test">Test voice</string>
-    <string name="settings_tts_test_sentence">Hello, this is AndroidHarness reading a reply out loud.</string>
+    <string name="settings_tts_test_sentence">Hello, this is AgentX reading a reply out loud.</string>
     <string name="settings_tts_no_device_voices">No extra voices are installed for this language. The device default is used.</string>
     <string name="settings_tts_read_aloud">Read aloud</string>
     <string name="settings_tts_stop_reading">Stop reading</string>

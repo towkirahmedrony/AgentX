@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         maven("https://jitpack.io") { content { includeGroup("com.github.topjohnwu.libsu") } }
     }
 }
-rootProject.name = "AndroidHarness"
+rootProject.name = "AgentX"
 include(":app")

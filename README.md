@@ -1,13 +1,13 @@
-# AndroidHarness
+# AgentX
 
 <p>
-  <a href="https://github.com/Sanuu7/AndroidHarness/releases/latest"><img src=".github/assets/download-from-github.png" alt="Download from GitHub" height="54"></a>
+  <a href="https://github.com/towkirahmedrony/AgentX/releases/latest"><img src=".github/assets/download-from-github.png" alt="Download from GitHub" height="54"></a>
   <a href="https://play.google.com/store/apps/details?id=com.androidharness.app"><img src=".github/assets/google-play.png" alt="Get it on Google Play" height="54"></a>
   <a href="https://buymeacoffee.com/sanuj7"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="54"></a>
 </p>
 
-[![Debug build](https://github.com/Sanuu7/AndroidHarness/actions/workflows/nightly.yml/badge.svg)](https://github.com/Sanuu7/AndroidHarness/actions/workflows/nightly.yml)
-[![Version](https://img.shields.io/badge/version-2.8-blue)](https://github.com/Sanuu7/AndroidHarness/releases/latest)
+[![Debug build](https://github.com/towkirahmedrony/AgentX/actions/workflows/nightly.yml/badge.svg)](https://github.com/towkirahmedrony/AgentX/actions/workflows/nightly.yml)
+[![Version](https://img.shields.io/badge/version-2.8-blue)](https://github.com/towkirahmedrony/AgentX/releases/latest)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84)](https://developer.android.com/about/versions/oreo)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
@@ -15,11 +15,11 @@
 
 **An AI coding agent and conversation partner that lives on your Android phone.**
 
-AndroidHarness is a native Android app, written in Kotlin with Jetpack Compose, that works on real code projects directly from the device. It reads and edits files, runs shell commands in a real Linux toolchain with bash, git, python, and node, pushes to GitHub, drives a browser, and streams the whole process into a chat you can inspect. A separate Chat section handles everyday questions, research, writing and brainstorming with automatic read-only tools, and hands project work to Code when you choose. No PC required, and No root.
+AgentX is a native Android app, written in Kotlin with Jetpack Compose, that works on real code projects directly from the device. It reads and edits files, runs shell commands in a real Linux toolchain with bash, git, python, and node, pushes to GitHub, drives a browser, and streams the whole process into a chat you can inspect. A separate Chat section handles everyday questions, research, writing and brainstorming with automatic read-only tools, and hands project work to Code when you choose. No PC required, and No root.
 
 <!-- Screenshots: add two or three device captures to docs/images/ and uncomment this block.
 <p align="center">
-  <img src="docs/images/chat.png" alt="AndroidHarness chat with streaming answers and tool call cards" width="260">
+  <img src="docs/images/chat.png" alt="AgentX chat with streaming answers and tool call cards" width="260">
   <img src="docs/images/diff.png" alt="Side by side diff viewer opened from a chat" width="260">
   <img src="docs/images/editor.png" alt="Code editor with syntax highlighting and line numbers" width="260">
 </p>
@@ -45,7 +45,7 @@ AndroidHarness is a native Android app, written in Kotlin with Jetpack Compose, 
 
 ## Quick start
 
-1. Install from [Google Play](https://play.google.com/store/apps/details?id=com.androidharness.app), [GitHub Releases](https://github.com/Sanuu7/AndroidHarness/releases/latest), or build from source below.
+1. Install from [Google Play](https://play.google.com/store/apps/details?id=com.androidharness.app), [GitHub Releases](https://github.com/towkirahmedrony/AgentX/releases/latest), or build from source below.
 2. Grant storage access. On Android 11 and up the app needs All files access so the shell and file tools can use real filesystem paths.
 3. Pick a model. Start instantly with the built-in keyless provider, add an API key in Settings, or download an on-device model from Settings → Local models.
 4. Optional but recommended: install [Shizuku](https://github.com/RikkaApps/Shizuku) or install linux environment inside the app, so shell commands run with proper permissions. On a rooted device, Settings → Terminal & device can also enable optional direct root.
@@ -176,7 +176,7 @@ The app-tier shell and the terminal run bundled Bash directly on Android 8 and 9
 - **App language.** Settings → App language offers System default, English, 简体中文, Русский, العربية and Bahasa Indonesia, applies immediately without a restart, persists on Android 12 and earlier, and follows Android's per-app language picker on Android 13 and up. The interface is translated into all five, with Arabic keeping code, diffs and terminals left to right; model and provider names, tool descriptions, agent prompts and shell output stay in English. The page links to the POEditor project for anyone who wants to help translate, and CONTRIBUTING.md explains the workflow.
 - A foreground service keeps the agent and terminals alive while the screen is off.
 - **Live activities on Android 16.** While a run or terminal is active, the ongoing notification can be promoted to a Live Update: Live updates on Pixel and near-stock Android, a Now Bar card on Samsung One UI, Live alerts on ColorOS and OxygenOS. The card shows a short state and progress, and offers Approve or Deny, or Skip or Install, while the agent waits for you. Idle services are never promoted, and Settings → Agent behavior → Live activities has the switch, the detected device and skin, its real permission state and per-brand setup steps.
-- The privileged shell verifies its connection. The standard Shizuku user service remains the default. If its startup fails on API 11–13, AndroidHarness automatically tries a private pipe-based compatibility runner using the same command and background-job implementation. This bypasses the Android Application initialization crash seen with Shizuku 13.6 on some OEM devices. Compatibility mode is marked ready only after checking the runner's identity and executing a privileged command. Terminal, tools, setup and diagnostics recognize both modes; Shizuku permission is still required.
+- The privileged shell verifies its connection. The standard Shizuku user service remains the default. If its startup fails on API 11–13, AgentX automatically tries a private pipe-based compatibility runner using the same command and background-job implementation. This bypasses the Android Application initialization crash seen with Shizuku 13.6 on some OEM devices. Compatibility mode is marked ready only after checking the runner's identity and executing a privileged command. Terminal, tools, setup and diagnostics recognize both modes; Shizuku permission is still required.
 - A Shizuku runner that cannot bind shows a failure reason, expandable details and copy actions in Terminal & device and Troubleshooting. Copy startup log reads recent startup logs through Shizuku's main server on API 11–13, even when the runner cannot bind; no computer is needed. Reports include app/server versions, error time and logs filtered to this app's helper and service records. Missing logs and collection failures are reported explicitly. Compatibility recovery keeps the original startup error available without showing the working connection as failed. Late callbacks from old attempts cannot replace the live connection.
 - Interrupted tasks come back as a Resume card. Tool results are saved before the next action, completed writes are not replayed on recovery, and uncertain operations ask you to inspect the current state.
 - Troubleshooting checks the default provider's model catalog, storage, the default workspace, Linux tools, Shizuku, SSH, connected MCP servers, and notifications in one place, and exports a diagnostic report built from a fixed whitelist of states. Credentials, endpoints, names, file paths, chats, and raw logs are never included.
@@ -228,7 +228,7 @@ The app-tier shell and the terminal run bundled Bash directly on Android 8 and 9
 
 ### Skills and slash commands
 
-- The app ships with a library of markdown skills (git, planning, test driven development, systematic debugging, web design, on-device Android builds, the AndroidHarness environment, and more) that the agent loads on demand. They are plain markdown files, so they are easy to edit and you can add your own.
+- The app ships with a library of markdown skills (git, planning, test driven development, systematic debugging, web design, on-device Android builds, the AgentX environment, and more) that the agent loads on demand. They are plain markdown files, so they are easy to edit and you can add your own.
 - Attach a skill to a message, or pull one in with a slash command.
 - `/clear`, `/compact`, `/cost`, `/doctor`, `/init`, `/plan`, `/skills`, plus any skill or snippet by name. `/plan` flips the agent into Plan mode and loads the planning skill automatically.
 
@@ -284,7 +284,7 @@ For local builders: register a [GitHub OAuth app](https://github.com/settings/de
 
 ## Developer repo wiki
 
-A generated architecture reference covering the agent engine, tools, providers, the MCP stack, and the workspace layer: [repowiki](https://github.com/Sanuu7/AndroidHarness/tree/main/repowiki). Last updated: 2026-09-06.
+A generated architecture reference covering the agent engine, tools, providers, the MCP stack, and the workspace layer: [repowiki](https://github.com/towkirahmedrony/AgentX/tree/main/repowiki). Last updated: 2026-09-06.
 
 ## Contributing
 
@@ -292,7 +292,7 @@ Bug reports, fixes, test improvements, and documentation are all welcome. Start 
 
 ## Inspirations
 
-AndroidHarness borrows ideas and design taste from open source projects across the ecosystem:
+AgentX borrows ideas and design taste from open source projects across the ecosystem:
 
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent)
 - [Aider](https://github.com/Aider-AI/aider)

@@ -3,7 +3,7 @@ package com.androidharness.app.telegram
 internal fun telegramAgentError(text: String): String = when (Regex("^HTTP\\s+(\\d{3})\\b", RegexOption.IGNORE_CASE)
     .find(text.trim())?.groupValues?.get(1)?.toIntOrNull()) {
     429 -> "The model provider is rate limited. Wait, or choose another model, then retry/resume this saved task."
-    401, 403 -> "The model provider rejected access. Check its connection in AndroidHarness, then retry/resume this saved task."
+    401, 403 -> "The model provider rejected access. Check its connection in AgentX, then retry/resume this saved task."
     404 -> "The selected model is unavailable. Choose another model and retry/resume this saved task."
     in 500..599 -> "The model provider is temporarily unavailable. Retry/resume this saved task when it returns."
     else -> text

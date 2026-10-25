@@ -201,7 +201,7 @@ internal class ChatGptLoopback : AutoCloseable {
                     val denied = validPath && path.toHttpUrlOrNullForLoopback(redirectUri)?.queryParameter("state") == state &&
                         path.toHttpUrlOrNullForLoopback(redirectUri)?.queryParameter("error") != null
                     val accepted = result?.isSuccess == true || denied
-                    val body = if (accepted) "<h2>Return to AndroidHarness</h2><p>The app is finishing your ChatGPT connection.</p>" else "<h2>Invalid sign-in response</h2><p>Please return to AndroidHarness and try again.</p>"
+                    val body = if (accepted) "<h2>Return to AgentX</h2><p>The app is finishing your ChatGPT connection.</p>" else "<h2>Invalid sign-in response</h2><p>Please return to AgentX and try again.</p>"
                     val bytes = body.toByteArray(Charsets.UTF_8)
                     it.getOutputStream().write(("HTTP/1.1 ${if (accepted) "200 OK" else "400 Bad Request"}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: ${bytes.size}\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n").toByteArray() + bytes)
                     if (accepted) return@withContext result!!.getOrThrow()

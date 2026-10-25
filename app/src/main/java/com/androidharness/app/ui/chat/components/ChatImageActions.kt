@@ -23,7 +23,7 @@ internal object ChatImageActions {
                 val values = ContentValues().apply {
                     put(MediaStore.Images.Media.DISPLAY_NAME, name)
                     put(MediaStore.Images.Media.MIME_TYPE, image.mimeType)
-                    put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/AndroidHarness")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/AgentX")
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 }
                 val resolver = context.contentResolver
@@ -37,7 +37,7 @@ internal object ChatImageActions {
             } else {
                 val parent = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
                     ?: File(context.filesDir, "images")
-                val dir = File(parent, "AndroidHarness").apply { mkdirs() }
+                val dir = File(parent, "AgentX").apply { mkdirs() }
                 val file = File(dir, name)
                 file.writeBytes(image.bytes)
                 MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(image.mimeType), null)

@@ -35,7 +35,7 @@ internal class TelegramService : Service() {
         scope.launch {
             combine(manager.setup.state, manager.runtime, manager.pairing, manager.error) { setup, runtime, pairing, error ->
                 when {
-                    pairing.candidate != null -> "Confirm your Telegram account in AndroidHarness"
+                    pairing.candidate != null -> "Confirm your Telegram account in AgentX"
                     pairing.challenge != null -> "Waiting for your pairing message"
                     !setup.enabled -> error ?: "Paused"
                     runtime.running -> runtime.label
@@ -69,7 +69,7 @@ internal class TelegramService : Service() {
     private fun notification(text: String): Notification {
         val open = Intent(this, MainActivity::class.java).putExtra(EXTRA_SETTINGS, "telegram").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("AndroidHarness · Telegram").setContentText(text.take(180))
+            .setContentTitle("AgentX · Telegram").setContentText(text.take(180))
             .setContentIntent(PendingIntent.getActivity(this, ID, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             .setOngoing(true).setOnlyAlertOnce(true).setCategory(Notification.CATEGORY_SERVICE)
         listOf("Pause" to ACTION_PAUSE, "Stop task" to ACTION_STOP).forEachIndexed { index, (label, action) ->

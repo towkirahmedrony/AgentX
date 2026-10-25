@@ -161,7 +161,7 @@ internal class TelegramSetupRepository(
     suspend fun sendTestMessage() = withContext(Dispatchers.IO) {
         val c = connection ?: throw TelegramSetupException(TelegramSetupProblem.NOT_PAIRED)
         val chat = c.ownerChatId ?: throw TelegramSetupException(TelegramSetupProblem.NOT_PAIRED)
-        api(c.token).sendMessage(chat, "AndroidHarness: your bot and paired account are connected. Use /help to see your Telegram controls.")
+        api(c.token).sendMessage(chat, "AgentX: your bot and paired account are connected. Use /help to see your Telegram controls.")
     }
 
 }

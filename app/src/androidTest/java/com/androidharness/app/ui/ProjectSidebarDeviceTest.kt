@@ -43,7 +43,7 @@ class ProjectSidebarDeviceTest {
 
     @Test fun projectTreeSearchActionsAndToolsMatchTheApprovedLayout() {
         val now = System.currentTimeMillis()
-        val projects = listOf(ProjectEntity("a", "AndroidHarness", "APP", null, now),
+        val projects = listOf(ProjectEntity("a", "AgentX", "APP", null, now),
             ProjectEntity("b", "Frame", "APP", null, now), ProjectEntity("c", "SanuFlix", "APP", null, now))
         fun chat(id: String, title: String, project: String, minutes: Long, plan: String? = null) =
             SessionEntity(id, title, now, now - minutes * 60_000, projectId = project, pendingPlan = plan)
@@ -83,7 +83,7 @@ class ProjectSidebarDeviceTest {
                                         if (value == SidebarChatAction.ARCHIVE) archived = archived + session.id
                                     }, onBuild = { destination.set("Build") }, onTerminal = { destination.set("Terminal") },
                                     onAutomation = { destination.set("Scheduled tasks") }, onProviders = { destination.set("Providers") },
-                                    onSettings = { destination.set("Settings") }, workspaceLabel = "Workspaces for this chat", workspaceSummary = "1 workspace · Primary: AndroidHarness",
+                                    onSettings = { destination.set("Settings") }, workspaceLabel = "Workspaces for this chat", workspaceSummary = "1 workspace · Primary: AgentX",
                                     onWorkspaces = { destination.set("Workspaces") }, onCollapse = { destination.set("Collapse") }, currentRoute = null,
                                     projectsView = projectsView, onProjectsViewChange = { projectsView = it },
                                     projectPins = projectPins, projectArchives = projectArchives,
@@ -96,16 +96,16 @@ class ProjectSidebarDeviceTest {
                     }
                 }
             } }
-            await { find("AndroidHarness icon") != null }
-            assertWithin("AndroidHarness icon")
+            await { find("AgentX icon") != null }
+            assertWithin("AgentX icon")
             screenshot("chats-view")
-            assertNull(find("Collapse AndroidHarness"))
+            assertNull(find("Collapse AgentX"))
             scrollTo("Working"); assertNotNull(find("Working"))
             scrollTo("Needs you"); assertNotNull(find("Needs you"))
             tap("Projects")
-            scrollTo("Expand AndroidHarness")
+            scrollTo("Expand AgentX")
             screenshot("projects-view")
-            tap("Expand AndroidHarness")
+            tap("Expand AgentX")
             screenshot("projects-expanded")
             scrollTo("Expand Frame"); tap("Expand Frame")
             scrollTo("Actions for Fix the mobile menu"); tap("Actions for Fix the mobile menu"); tap("Chat details")
@@ -162,7 +162,7 @@ class ProjectSidebarDeviceTest {
             await { find("Open navigation") != null }
             assertNull("A closed drawer must not expose its search field", find("Search chats and messages"))
             tap("Open navigation")
-            await { find("AndroidHarness icon") != null }
+            await { find("AgentX icon") != null }
             assertSearchInactive(activity)
             tap("Search chats and messages")
             await { searchHasFocus() && keyboardVisible(activity) }
@@ -170,7 +170,7 @@ class ProjectSidebarDeviceTest {
             tap("Collapse sidebar")
             await { find("Open navigation") != null }
             tap("Open navigation")
-            await { find("AndroidHarness icon") != null }
+            await { find("AgentX icon") != null }
             assertSearchInactive(activity)
             assertEquals("", nodes().first { it.isEditable && it.isVisibleToUser }.text?.toString().orEmpty())
             search("")

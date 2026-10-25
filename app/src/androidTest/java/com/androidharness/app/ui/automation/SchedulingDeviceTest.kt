@@ -86,7 +86,7 @@ class SchedulingDeviceTest {
         val previousConnection = preferences.getBoolean("unmetered", false)
         preferences.edit().putBoolean("unmetered", false).commit()
         val previous = c.workspace.currentProjectOnce()
-        val roots = File(c.appContext.cacheDir, "scheduling-${System.nanoTime()}/AndroidHarness").apply { mkdirs() }
+        val roots = File(c.appContext.cacheDir, "scheduling-${System.nanoTime()}/AgentX").apply { mkdirs() }
         val project = c.workspace.addShellProject(roots.path)
         val session = c.sessions.createSession("Release checks for the Android project", project.id)
         val gateway = FixtureGateway(mode)

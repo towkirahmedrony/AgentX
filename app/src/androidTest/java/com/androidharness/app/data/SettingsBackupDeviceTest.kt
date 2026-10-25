@@ -64,7 +64,7 @@ class SettingsBackupDeviceTest {
             val uri = requireNotNull(context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, "backup-device-${System.nanoTime()}.hbackup")
                 put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
-                put(MediaStore.Downloads.RELATIVE_PATH, "Download/AndroidHarnessBackupTests")
+                put(MediaStore.Downloads.RELATIVE_PATH, "Download/AgentXBackupTests")
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }))
             destination = uri

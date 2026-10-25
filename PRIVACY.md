@@ -1,8 +1,8 @@
-# Privacy Policy for AndroidHarness
+# Privacy Policy for AgentX
 
 Last updated: September 6, 2026
 
-AndroidHarness runs on your device. It is a tool that connects to services you
+AgentX runs on your device. It is a tool that connects to services you
 choose and configure yourself. I built it so that your data stays between you
 and those services. This page explains what the app handles and what it does
 with it.
@@ -57,4 +57,4 @@ change will be reflected in the app's store listing.
 ## Contact
 
 Questions or concerns: open an issue at
-https://github.com/Sanuu7/AndroidHarness/issues
+https://github.com/towkirahmedrony/AgentX/issues

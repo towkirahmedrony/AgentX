@@ -61,7 +61,7 @@ jobs:
         run: |
           STAMP=$(date -u +%Y%m%d-%H%M)
           SHA=$(git rev-parse --short HEAD)
-          NAME="AndroidHarness-${STAMP}-${SHA}-debug.apk"
+          NAME="AgentX-${STAMP}-${SHA}-debug.apk"
           mkdir dist && cp app/build/outputs/apk/debug/app-debug.apk "dist/${NAME}"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
 

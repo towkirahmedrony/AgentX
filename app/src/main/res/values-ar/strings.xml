@@ -139,9 +139,9 @@
     <string name="settings_search_license_title">"الترخيص"</string>
     <string name="settings_search_license_desc">"حول · ترخيص MIT وما يعنيه للنسخ المتفرّعة"</string>
     <string name="settings_search_credits_title">"الإشادات"</string>
-    <string name="settings_search_credits_desc">"حول · المشاريع المفتوحة المصدر التي يعتمد عليها AndroidHarness"</string>
+    <string name="settings_search_credits_desc">"حول · المشاريع المفتوحة المصدر التي يعتمد عليها AgentX"</string>
     <string name="settings_search_author_title">"المطوّر"</string>
-    <string name="settings_search_author_desc">"حول · من يطوّر AndroidHarness وكيف تتواصل معه"</string>
+    <string name="settings_search_author_desc">"حول · من يطوّر AgentX وكيف تتواصل معه"</string>
     <string name="settings_anchor_progress_bar_style">"نمط شريط التقدّم"</string>
     <string name="settings_anchor_fallbacks">"البدائل"</string>
     <string name="settings_anchor_continue_chatgpt">"المتابعة باستخدام ChatGPT"</string>
@@ -287,10 +287,10 @@
     <string name="settings_restore_reconnect_title">"إعادة ربط المحادثات المستعادة"</string>
     <string name="settings_restore_reconnect_note">"يبقى الوصول المقيّد بالقراءة للقراءة فقط. تحتاج المحادثات التي استخدمت مساحات عمل متعددة إلى مجلد منفصل لكل منها."</string>
     <string name="settings_accounts_using_plan">"أنت تستخدم اشتراك ChatGPT"</string>
-    <string name="settings_accounts_using_plan_desc">"تستخدم الطلبات المؤهلة في AndroidHarness اشتراك ChatGPT أو أرصدتك. راجع الاستخدام وأدر وصول هذا التطبيق في إعدادات ChatGPT."</string>
+    <string name="settings_accounts_using_plan_desc">"تستخدم الطلبات المؤهلة في AgentX اشتراك ChatGPT أو أرصدتك. راجع الاستخدام وأدر وصول هذا التطبيق في إعدادات ChatGPT."</string>
     <string name="settings_action_got_it">"فهمت"</string>
     <string name="settings_accounts_signout_title">"تسجيل الخروج من هذا الحساب؟"</string>
-    <string name="settings_accounts_signout_message">"يفصل هذا الحساب عن AndroidHarness ويزيله من التبديل التلقائي. يمكنك تسجيل الدخول مجدداً لاحقاً."</string>
+    <string name="settings_accounts_signout_message">"يفصل هذا الحساب عن AgentX ويزيله من التبديل التلقائي. يمكنك تسجيل الدخول مجدداً لاحقاً."</string>
     <string name="settings_action_continue">"متابعة"</string>
     <string name="settings_progress_bar_subtitle">"اختر مظهر أشرطة التقدّم. يُطبّق فوراً."</string>
     <string name="settings_provider_select">"اختيار"</string>
@@ -883,7 +883,7 @@
     <string name="chat_handoff_picker_note">"اختر مكان البناء. تنتقل خطة المحادثة معك."</string>
     <string name="chat_handoff_close">"إغلاق قائمة مساحات العمل"</string>
     <string name="chat_handoff_no_workspace">"أضف مساحة عمل في قسم الكود للمتابعة."</string>
-    <string name="chat_share_target">"محادثة AndroidHarness"</string>
+    <string name="chat_share_target">"محادثة AgentX"</string>
     <string name="chat_share_title">"المشاركة إلى المحادثة"</string>
     <string name="chat_share_review">"راجع العناصر المشتركة واختر محادثة وأضف سؤالاً. لا يُرسل شيء حتى تضغط إرسال في المحادثة."</string>
     <string name="chat_share_new">"محادثة جديدة"</string>

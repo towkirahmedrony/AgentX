@@ -84,14 +84,14 @@ internal class AndroidTelegramAgentBridge(private val c: AppContainer, private v
     }
     private suspend fun key(provider: ProviderConfig): String = if (provider.id == HarnessProvider.ID) c.providers.harnessApiKey()
         else provider.effectiveApiKey(c.providers.apiKey(provider.id)).takeIf { it.isNotBlank() }
-            ?: error("Connect ${provider.name} in AndroidHarness before using it from Telegram.")
+            ?: error("Connect ${provider.name} in AgentX before using it from Telegram.")
 
     override suspend fun start(request: TelegramRequest, binding: String) {
         val sid = requireNotNull(request.sessionId)
         val chat = c.sessions.session(sid) ?: error("This chat was removed. Your request was kept.")
         check(chat.projectId == request.projectId) { "This chat's project changed. Your request was kept for review." }
         val fs = c.workspace.forSession(sid)
-        check(c.mcp.unapprovedWorkspaceServers(fs).isEmpty()) { "Workspace tools need approval. Open this chat in AndroidHarness to approve them." }
+        check(c.mcp.unapprovedWorkspaceServers(fs).isEmpty()) { "Workspace tools need approval. Open this chat in AgentX to approve them." }
         val provider = c.providers.providers.first().firstOrNull { it.id == request.providerId }
             ?: error("The saved provider is unavailable. Choose another model and retry.")
         val config = provider.copy(model = requireNotNull(request.model))
@@ -99,7 +99,7 @@ internal class AndroidTelegramAgentBridge(private val c: AppContainer, private v
         val saved = runs.controls.flow(sid).value
         val promptId = request.promptId(binding)
         if (request.resume) {
-            check(saved.initialPromptId == promptId && saved.resumable) { "This chat has moved on. Review the saved request in AndroidHarness." }
+            check(saved.initialPromptId == promptId && saved.resumable) { "This chat has moved on. Review the saved request in AgentX." }
             runs.controls.update(sid) { it.copy(provider = config, allowModelFallback = false) }
             runs.resumeTask(sid, apiKey, notifyOnFinish = false)
             return
@@ -140,7 +140,7 @@ internal class AndroidTelegramAgentBridge(private val c: AppContainer, private v
             matches && !running && saved.resumable, matches && live.cancelled,
             saved.turnId.takeIf { matches }, if (matches) runs.actionText(live) ?: "Working…" else "Waiting for this chat's current task",
             if (matches) com.androidharness.app.core.response.RichResponse.plainText(live.streamingText.orEmpty(), streaming = true) else "", output,
-            if (matches) saved.reason ?: live.error else if (started) "This chat has moved to another task. Review the saved request in AndroidHarness." else null, decision)
+            if (matches) saved.reason ?: live.error else if (started) "This chat has moved to another task. Review the saved request in AgentX." else null, decision)
     }
     override suspend fun isBusy(sessionId: String) = runs.isRunning(sessionId) || runs.hasPendingFollowUp(sessionId) || runs.controls.flow(sessionId).value.resumable
     override suspend fun stop(sessionId: String) {

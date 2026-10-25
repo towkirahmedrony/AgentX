@@ -56,7 +56,7 @@ data class PrivilegedResult(
 )
 
 /**
- * Bridges AndroidHarness to Shizuku. Once Shizuku is running AND the user has
+ * Bridges AgentX to Shizuku. Once Shizuku is running AND the user has
  * granted access, we bind an in-server "user service" ([HarnessUserService])
  * that executes shell commands as the shell (or root) uid, the only reliable
  * way to reach system paths, pm/am, and any folder on the device on modern
@@ -290,7 +290,7 @@ class ShizukuManager(
 
     /** Explicitly copied connection report, separate from the general report that excludes raw errors. */
     fun connectionReport(): String = buildString {
-        appendLine("AndroidHarness Shizuku connection")
+        appendLine("AgentX Shizuku connection")
         appendLine("App: ${com.androidharness.app.BuildConfig.VERSION_NAME} (${com.androidharness.app.BuildConfig.VERSION_CODE})")
         appendLine("Package: ${context.packageName}")
         appendLine("Android: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")

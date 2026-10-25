@@ -4,7 +4,7 @@
 
 ### Module Responsibilities
 
-`OpenAiCompatProvider` connects AndroidHarness to OpenAI-standard `/chat/completions` HTTP endpoints. Bridges local proxies (Ollama, LM Studio, llama.cpp) and remote multi-model gateways (OpenAI, OpenRouter, Groq, DeepSeek, Together).
+`OpenAiCompatProvider` connects AgentX to OpenAI-standard `/chat/completions` HTTP endpoints. Bridges local proxies (Ollama, LM Studio, llama.cpp) and remote multi-model gateways (OpenAI, OpenRouter, Groq, DeepSeek, Together).
 
 Primary responsibilities:
 - Wire serialization. Builds `/chat/completions` JSON payloads with model-specific thinking, caching, and token constraints.

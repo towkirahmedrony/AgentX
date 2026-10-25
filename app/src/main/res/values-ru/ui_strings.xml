@@ -635,7 +635,7 @@
     <string name="ui_shizuku_is_disabled">"Shizuku отключён"</string>
     <string name="ui_shizuku_is_no_longer_available_its_server">"Shizuku больше недоступен. Его сервер мог остановиться или быть завершён "</string>
     <string name="ui_in_the_background_or_this_app_s">"в фоне, либо доступ приложения мог быть отозван. "</string>
-    <string name="ui_start_shizuku_and_allow_androidharness_access_to">"Запустите Shizuku и разрешите доступ AndroidHarness для повторного использования."</string>
+    <string name="ui_start_shizuku_and_allow_androidharness_access_to">"Запустите Shizuku и разрешите доступ AgentX для повторного использования."</string>
     <string name="ui_never_show_this_message_again">"Больше не показывать это сообщение"</string>
     <string name="ui_limits_resets">"Лимиты и сбросы"</string>
     <string name="ui_view_live_limits_in_chatgpt">"Посмотреть текущие лимиты в ChatGPT"</string>
@@ -1108,7 +1108,7 @@
     <string name="ui_the_app_needs_node_python_from_the">"вместе с приложением. Нужен node или python из окружения Linux."</string>
     <string name="ui_not_installed_optional">"Не установлен: необязательно."</string>
     <string name="ui_installed_not_running">"Установлен, не запущен."</string>
-    <string name="ui_running_grant_androidharness_access">"Запущен: разрешите доступ AndroidHarness."</string>
+    <string name="ui_running_grant_androidharness_access">"Запущен: разрешите доступ AgentX."</string>
     <string name="ui_connected_shell_privileges_ready">"Подключён: права оболочки готовы."</string>
     <string name="ui_connected_in_compatibility_mode_shell_privileges_ready">"Подключён в режиме совместимости: права оболочки готовы."</string>
     <string name="ui_access_granted_connecting_to_the_shell_runner">"Доступ разрешён. Подключение к оболочке…"</string>
@@ -1155,10 +1155,10 @@
     <string name="ui_open_source">"Открыть источник"</string>
     <string name="ui_use_it_change_it_ship_it_even">"Используйте, изменяйте и распространяйте, в том числе в коммерческом приложении. Единственное условие: "</string>
     <string name="ui_copyright_notice_and_the_license_text_travel">"уведомление об авторских правах и текст лицензии должны сопровождать код. Гарантии не предоставляются."</string>
-    <string name="ui_androidharness_is_built_on_open_source_work">"AndroidHarness основан на открытых проектах и идеях предшествующих агентов."</string>
+    <string name="ui_androidharness_is_built_on_open_source_work">"AgentX основан на открытых проектах и идеях предшествующих агентов."</string>
     <string name="ui_built_with">"Создано с помощью"</string>
     <string name="ui_inspired_by">"Источники вдохновения"</string>
-    <string name="ui_every_project_keeps_its_own_license_androidharness">"Каждый проект сохраняет свою лицензию. AndroidHarness не связан с их авторами."</string>
+    <string name="ui_every_project_keeps_its_own_license_androidharness">"Каждый проект сохраняет свою лицензию. AgentX не связан с их авторами."</string>
     <string name="ui_exported_chats_messages">"Экспортировано чатов: %1$s (сообщения: %2$s, записи памяти: %3$s)."</string>
     <string name="ui_export_failed">"Ошибка экспорта."</string>
     <string name="ui_export_failed_1230">"Ошибка экспорта: %1$s"</string>
@@ -1247,7 +1247,7 @@
     <string name="ui_status">"Статус"</string>
     <string name="ui_retry_resume">"Повторить / продолжить"</string>
     <string name="ui_pause_telegram">"Приостановить Telegram"</string>
-    <string name="ui_welcome_to_androidharness">"Добро пожаловать в AndroidHarness"</string>
+    <string name="ui_welcome_to_androidharness">"Добро пожаловать в AgentX"</string>
     <string name="ui_grant_storage_access_to_start_coding_notifications">"Предоставьте доступ к хранилищу для работы с кодом. Уведомления и другие инструменты необязательны."</string>
     <string name="ui_device_storage_access_granted">"Доступ к хранилищу устройства предоставлен"</string>
     <string name="ui_required_allow_access_to_device_files_and">"Обязательно: разрешите доступ к файлам и папкам устройства"</string>
@@ -1585,7 +1585,7 @@
     <string name="ui_access_mode">"Режим доступа: %1$s"</string>
     <string name="ui_scheduled_tasks">"Запланированные задачи"</string>
     <string name="ui_project_and_chat_sidebar">"Боковая панель проектов и чатов"</string>
-    <string name="ui_androidharness_icon">"Значок AndroidHarness"</string>
+    <string name="ui_androidharness_icon">"Значок AgentX"</string>
     <string name="ui_collapse_sidebar">"Свернуть боковую панель"</string>
     <string name="ui_search_chats_and_messages">"Поиск чатов и сообщений"</string>
     <string name="ui_search_chats">"Поиск чатов"</string>

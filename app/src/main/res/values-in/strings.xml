@@ -139,9 +139,9 @@
     <string name="settings_search_license_title">"Lisensi"</string>
     <string name="settings_search_license_desc">"Tentang · Lisensi MIT dan artinya untuk versi turunan"</string>
     <string name="settings_search_credits_title">"Kredit"</string>
-    <string name="settings_search_credits_desc">"Tentang · Proyek sumber terbuka di balik AndroidHarness"</string>
+    <string name="settings_search_credits_desc">"Tentang · Proyek sumber terbuka di balik AgentX"</string>
     <string name="settings_search_author_title">"Pembuat"</string>
-    <string name="settings_search_author_desc">"Tentang · Pengembang AndroidHarness dan tempat menemukannya"</string>
+    <string name="settings_search_author_desc">"Tentang · Pengembang AgentX dan tempat menemukannya"</string>
     <string name="settings_anchor_progress_bar_style">"Gaya bilah progres"</string>
     <string name="settings_anchor_fallbacks">"Model cadangan"</string>
     <string name="settings_anchor_continue_chatgpt">"Lanjutkan dengan ChatGPT"</string>
@@ -287,10 +287,10 @@
     <string name="settings_restore_reconnect_title">"Hubungkan ulang chat yang dipulihkan"</string>
     <string name="settings_restore_reconnect_note">"Akses hanya baca tetap hanya baca. Chat yang menggunakan beberapa ruang kerja memerlukan folder terpisah untuk masing-masing."</string>
     <string name="settings_accounts_using_plan">"Anda menggunakan paket ChatGPT"</string>
-    <string name="settings_accounts_using_plan_desc">"Permintaan yang memenuhi syarat di AndroidHarness menggunakan paket atau kredit ChatGPT. Tinjau penggunaan dan kelola akses aplikasi di setelan ChatGPT."</string>
+    <string name="settings_accounts_using_plan_desc">"Permintaan yang memenuhi syarat di AgentX menggunakan paket atau kredit ChatGPT. Tinjau penggunaan dan kelola akses aplikasi di setelan ChatGPT."</string>
     <string name="settings_action_got_it">"Mengerti"</string>
     <string name="settings_accounts_signout_title">"Logout dari akun ini?"</string>
-    <string name="settings_accounts_signout_message">"Ini memutuskan akun dari AndroidHarness dan menghapusnya dari peralihan otomatis. Anda dapat login lagi nanti."</string>
+    <string name="settings_accounts_signout_message">"Ini memutuskan akun dari AgentX dan menghapusnya dari peralihan otomatis. Anda dapat login lagi nanti."</string>
     <string name="settings_action_continue">"Lanjutkan"</string>
     <string name="settings_progress_bar_subtitle">"Pilih tampilan bilah progres. Langsung diterapkan."</string>
     <string name="settings_provider_select">"Pilih"</string>
@@ -878,7 +878,7 @@
     <string name="chat_handoff_picker_note">"Pilih tempat untuk membuatnya. Rencana Chat ikut dibawa."</string>
     <string name="chat_handoff_close">"Tutup pemilih ruang kerja"</string>
     <string name="chat_handoff_no_workspace">"Tambahkan ruang kerja di Kode untuk melanjutkan."</string>
-    <string name="chat_share_target">"AndroidHarness Chat"</string>
+    <string name="chat_share_target">"AgentX Chat"</string>
     <string name="chat_share_title">"Bagikan ke Chat"</string>
     <string name="chat_share_review">"Tinjau item yang dibagikan, pilih Chat, dan tambahkan pertanyaan. Tidak ada yang dikirim hingga Anda mengetuk Kirim di Chat."</string>
     <string name="chat_share_new">"Chat Baru"</string>

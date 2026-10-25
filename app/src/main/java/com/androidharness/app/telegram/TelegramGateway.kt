@@ -103,7 +103,7 @@ internal class TelegramGateway(
 
     private suspend fun target(): TelegramTarget = controls.withLock {
         val c = current()
-        val project = c.projectId ?: error("Choose a project in AndroidHarness or use /projects.")
+        val project = c.projectId ?: error("Choose a project in AgentX or use /projects.")
         val target = agent.target(project, c.sessionId, c.mode)
         if (c.sessionId != target.sessionId) selectDestination(project, target.sessionId)
         target
@@ -141,7 +141,7 @@ internal class TelegramGateway(
                 if (arguments.isNotBlank()) {
                     agent.selectModel(t.sessionId, t.providerId, arguments, current().mode)
                     reply("model-${request.id}", "Model selected: $arguments")
-                } else menu("providers-${request.id}", "Choose a provider. Model changes follow this chat's model-sharing setting in AndroidHarness.",
+                } else menu("providers-${request.id}", "Choose a provider. Model changes follow this chat's model-sharing setting in AgentX.",
                     agent.providers(), "provider", sessionId = t.sessionId, projectId = t.projectId, mode = current().mode)
             }
             "/new" -> controls.withLock {
@@ -157,7 +157,7 @@ internal class TelegramGateway(
                 val mode = arguments.uppercase()
                 check(mode in listOf("ACT", "PLAN")) { "Use /mode plan for inspection or /mode act for editing and tools." }
                 selectMode(mode)
-                reply("mode-${request.id}", if (mode == "PLAN") "Plan mode: inspect and propose changes." else "Act mode: use tools with your AndroidHarness permission settings.")
+                reply("mode-${request.id}", if (mode == "PLAN") "Plan mode: inspect and propose changes." else "Act mode: use tools with your AgentX permission settings.")
             }
             "/stop" -> { stopCurrent(); reply("stop-${request.id}", "Stopped this chat's task and cancelled its Telegram queue. Saved messages and file changes are kept.") }
             "/retry", "/resume" -> {
@@ -174,7 +174,7 @@ internal class TelegramGateway(
                 pause()
                 return
             }
-            "/pair" -> reply("pair-${request.id}", "This account is already paired. To change accounts, start pairing in AndroidHarness.")
+            "/pair" -> reply("pair-${request.id}", "This account is already paired. To change accounts, start pairing in AgentX.")
             else -> {
                 val prompt = if (command == "/ask") arguments else text
                 if (command.startsWith('/') && command != "/ask" && command != "/answer") {
@@ -221,7 +221,7 @@ internal class TelegramGateway(
             val more = TelegramAction(kind = "page-$kind", value = (page + 1).toString(), extra = extra, sessionId = sessionId, projectId = projectId, expiresAt = now() + 600_000, mode = mode)
             actions += more; buttons += listOf(TelegramStoredButton("More…", more.id))
         }
-        reply(key, if (choices.isEmpty()) "$title\nNo choices available. Create one in AndroidHarness first." else title, buttons, actions)
+        reply(key, if (choices.isEmpty()) "$title\nNo choices available. Create one in AgentX first." else title, buttons, actions)
     }
 
     private suspend fun handleCallback(request: TelegramRequest) {
@@ -291,7 +291,7 @@ internal class TelegramGateway(
 
     suspend fun retry(id: Long) = controls.withLock {
         val row = store.request(id)?.takeIf { it.retryable && it.callback == null && it.sessionId != null }
-            ?: error("This request cannot be retried. Review it in AndroidHarness.")
+            ?: error("This request cannot be retried. Review it in AgentX.")
         val snap = agent.snapshot(row, binding)
         check(!snap.running) { "This chat is already running." }
         check(!snap.started || snap.matches && snap.interrupted) { "This request's task has moved on. Review its chat before retrying." }
@@ -320,7 +320,7 @@ internal class TelegramGateway(
             if (row == null) { mutable.update { it.copy(action = null, activeRequestId = null) }; delay(300); continue }
             try {
                 val snapshot = agent.snapshot(row, binding)
-                if (snapshot.started && !snapshot.matches) { interrupted(row, snapshot.error ?: "This chat moved on. Review it in AndroidHarness."); continue }
+                if (snapshot.started && !snapshot.matches) { interrupted(row, snapshot.error ?: "This chat moved on. Review it in AgentX."); continue }
                 if (snapshot.completed) { finish(row, snapshot.output); continue }
                 if (snapshot.cancelled) { store.updateRequest(row.id) { it.copy(status = TelegramRequestStatus.CANCELLED) }; continue }
                 if (snapshot.interrupted && !row.resume) { interrupted(row, snapshot.error ?: "Task interrupted. Use /retry ${row.id} to resume safely."); continue }
@@ -353,7 +353,7 @@ internal class TelegramGateway(
         store.updateRequest(row.id) { if (it.status == TelegramRequestStatus.CANCELLED) it else it.copy(status = status, error = message) }
     }
     private fun finish(row: TelegramRequest, output: String) {
-        val chunks = telegramChunks(safe("Request #${row.id} finished\n\n${output.ifBlank { "Completed. Open the chat in AndroidHarness to review its tool results." }}"))
+        val chunks = telegramChunks(safe("Request #${row.id} finished\n\n${output.ifBlank { "Completed. Open the chat in AgentX to review its tool results." }}"))
         // Completion and every reply chunk share one durable write.
         store.change { saved ->
             if (saved.requests.any { it.id == row.id && it.status == TelegramRequestStatus.CANCELLED }) saved
@@ -428,6 +428,6 @@ internal class TelegramGateway(
     }
     companion object {
         private fun reconnectDelay(attempt: Int) = (1_000L shl attempt.coerceIn(0, 5)).coerceAtMost(30_000)
-        const val HELP = "Send a normal message to continue your AndroidHarness chat.\n\n/new — new chat\n/projects — choose project\n/chats — choose chat\n/model — choose provider and model\n/mode plan or /mode act\n/status — project, model and progress\n/stop — stop this task and its queue\n/retry — retry or resume saved work\n/pause — pause Telegram\n\nTool approvals appear as buttons. Answer agent questions with a button or a normal message. Your phone must be online with Telegram enabled in AndroidHarness."
+        const val HELP = "Send a normal message to continue your AgentX chat.\n\n/new — new chat\n/projects — choose project\n/chats — choose chat\n/model — choose provider and model\n/mode plan or /mode act\n/status — project, model and progress\n/stop — stop this task and its queue\n/retry — retry or resume saved work\n/pause — pause Telegram\n\nTool approvals appear as buttons. Answer agent questions with a button or a normal message. Your phone must be online with Telegram enabled in AgentX."
     }
 }

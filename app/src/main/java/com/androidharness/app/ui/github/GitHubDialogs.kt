@@ -255,7 +255,7 @@ fun GitHubPublishDialog(container: AppContainer, projectId: String, projectName:
     }
     if (preset && state != null) GitHubPushPresetDialog(container, projectId, projectName,
         initial = GitHubPushPreset(requireNotNull(state).remoteUrl, requireNotNull(state).branch,
-            commitMessage.ifBlank { "Update from AndroidHarness" }, paths.toList()), onDismiss = { preset = false })
+            commitMessage.ifBlank { "Update from AgentX" }, paths.toList()), onDismiss = { preset = false })
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -266,7 +266,7 @@ fun GitHubPushPresetDialog(container: AppContainer, projectId: String, projectNa
     val scope = rememberCoroutineScope()
     var snapshot by remember { mutableStateOf(initial ?: task?.githubPush) }
     var title by remember { mutableStateOf(task?.title ?: uiContext.getString(R.string.ui_push_to_github, (projectName).toString())) }
-    var commitMessage by remember { mutableStateOf(initial?.commitMessage ?: task?.githubPush?.commitMessage ?: "Update from AndroidHarness") }
+    var commitMessage by remember { mutableStateOf(initial?.commitMessage ?: task?.githubPush?.commitMessage ?: "Update from AgentX") }
     var schedule by remember { mutableStateOf(task?.schedule ?: AutomationSchedule.MANUAL) }
     var hour by remember { mutableStateOf((task?.hour ?: 8).toString()) }
     var minute by remember { mutableStateOf((task?.minute ?: 0).toString()) }

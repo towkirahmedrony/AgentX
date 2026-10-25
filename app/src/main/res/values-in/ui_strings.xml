@@ -635,7 +635,7 @@
     <string name="ui_shizuku_is_disabled">"Shizuku dinonaktifkan"</string>
     <string name="ui_shizuku_is_no_longer_available_its_server">"Shizuku tidak lagi tersedia. Servernya mungkin berhenti atau dihentikan "</string>
     <string name="ui_in_the_background_or_this_app_s">"di latar belakang, atau akses aplikasi ini telah dicabut. "</string>
-    <string name="ui_start_shizuku_and_allow_androidharness_access_to">"Jalankan Shizuku dan izinkan akses AndroidHarness untuk menggunakannya lagi."</string>
+    <string name="ui_start_shizuku_and_allow_androidharness_access_to">"Jalankan Shizuku dan izinkan akses AgentX untuk menggunakannya lagi."</string>
     <string name="ui_never_show_this_message_again">"Jangan tampilkan pesan ini lagi"</string>
     <string name="ui_limits_resets">"Batas &amp; pengaturan ulang"</string>
     <string name="ui_view_live_limits_in_chatgpt">"Lihat batas terkini di ChatGPT"</string>
@@ -1108,7 +1108,7 @@
     <string name="ui_the_app_needs_node_python_from_the">"aplikasi. Memerlukan node/python dari lingkungan Linux."</string>
     <string name="ui_not_installed_optional">"Belum terinstal: opsional."</string>
     <string name="ui_installed_not_running">"Terinstal, tidak berjalan."</string>
-    <string name="ui_running_grant_androidharness_access">"Berjalan: berikan akses AndroidHarness."</string>
+    <string name="ui_running_grant_androidharness_access">"Berjalan: berikan akses AgentX."</string>
     <string name="ui_connected_shell_privileges_ready">"Terhubung: hak akses shell siap."</string>
     <string name="ui_connected_in_compatibility_mode_shell_privileges_ready">"Terhubung dalam mode kompatibilitas: hak akses shell siap."</string>
     <string name="ui_access_granted_connecting_to_the_shell_runner">"Akses diberikan. Menghubungkan ke pelaksana shell…"</string>
@@ -1155,10 +1155,10 @@
     <string name="ui_open_source">"Sumber terbuka"</string>
     <string name="ui_use_it_change_it_ship_it_even">"Gunakan, ubah, dan distribusikan, bahkan dalam aplikasi komersial. Satu-satunya syarat adalah "</string>
     <string name="ui_copyright_notice_and_the_license_text_travel">"pemberitahuan hak cipta dan teks lisensi disertakan bersama kode. Tanpa jaminan."</string>
-    <string name="ui_androidharness_is_built_on_open_source_work">"AndroidHarness dibangun di atas karya sumber terbuka dan mengambil inspirasi dari agen sebelumnya."</string>
+    <string name="ui_androidharness_is_built_on_open_source_work">"AgentX dibangun di atas karya sumber terbuka dan mengambil inspirasi dari agen sebelumnya."</string>
     <string name="ui_built_with">"Dibangun dengan"</string>
     <string name="ui_inspired_by">"Terinspirasi oleh"</string>
-    <string name="ui_every_project_keeps_its_own_license_androidharness">"Setiap proyek mempertahankan lisensinya sendiri. AndroidHarness tidak berafiliasi dengan mereka."</string>
+    <string name="ui_every_project_keeps_its_own_license_androidharness">"Setiap proyek mempertahankan lisensinya sendiri. AgentX tidak berafiliasi dengan mereka."</string>
     <string name="ui_exported_chats_messages">"Mengekspor %1$s chat (%2$s pesan, %3$s memori)."</string>
     <string name="ui_export_failed">"Ekspor gagal."</string>
     <string name="ui_export_failed_1230">"Ekspor gagal: %1$s"</string>
@@ -1247,7 +1247,7 @@
     <string name="ui_status">"Status"</string>
     <string name="ui_retry_resume">"Coba lagi / lanjutkan"</string>
     <string name="ui_pause_telegram">"Jeda Telegram"</string>
-    <string name="ui_welcome_to_androidharness">"Selamat datang di AndroidHarness"</string>
+    <string name="ui_welcome_to_androidharness">"Selamat datang di AgentX"</string>
     <string name="ui_grant_storage_access_to_start_coding_notifications">"Berikan akses penyimpanan untuk mulai membuat kode. Notifikasi dan alat lain bersifat opsional."</string>
     <string name="ui_device_storage_access_granted">"Akses penyimpanan perangkat diberikan"</string>
     <string name="ui_required_allow_access_to_device_files_and">"Wajib: izinkan akses berkas dan folder perangkat"</string>
@@ -1585,7 +1585,7 @@
     <string name="ui_access_mode">"Mode akses: %1$s"</string>
     <string name="ui_scheduled_tasks">"Tugas terjadwal"</string>
     <string name="ui_project_and_chat_sidebar">"Bilah samping proyek dan chat"</string>
-    <string name="ui_androidharness_icon">"Ikon AndroidHarness"</string>
+    <string name="ui_androidharness_icon">"Ikon AgentX"</string>
     <string name="ui_collapse_sidebar">"Ciutkan bilah samping"</string>
     <string name="ui_search_chats_and_messages">"Cari chat dan pesan"</string>
     <string name="ui_search_chats">"Cari chat"</string>

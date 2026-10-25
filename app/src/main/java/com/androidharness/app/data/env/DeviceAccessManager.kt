@@ -240,7 +240,7 @@ class DeviceAccessManager(
         return report()
     }
     fun report(): String = buildString {
-        appendLine("AndroidHarness device access")
+        appendLine("AgentX device access")
         appendLine("Mode: ${preferences.value.mode.label}; auto fallback: ${preferences.value.mode == AccessMode.AUTO || preferences.value.autoFallback}")
         appendLine("Direct root: ${root.state.value.status.label}${root.state.value.provider?.let { " (${it.label})" } ?: ""}")
         appendLine("Root manager: ${root.state.value.provider?.label ?: "Not detected"} (${root.state.value.providerEvidence ?: "no evidence"})")

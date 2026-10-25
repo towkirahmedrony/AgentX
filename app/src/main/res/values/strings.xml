@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The product name is a brand, not UI copy, so it is never translated. -->
-    <string name="app_name" translatable="false">AndroidHarness</string>
+    <string name="app_name" translatable="false">AgentX</string>
 
     <!-- ================================================================
          Settings · page titles, descriptions and groups.
@@ -152,9 +152,9 @@
     <string name="settings_search_license_title">License</string>
     <string name="settings_search_license_desc">About · The MIT license and what it means for forks</string>
     <string name="settings_search_credits_title">Credits</string>
-    <string name="settings_search_credits_desc">About · Open source projects behind AndroidHarness</string>
+    <string name="settings_search_credits_desc">About · Open source projects behind AgentX</string>
     <string name="settings_search_author_title">Author</string>
-    <string name="settings_search_author_desc">About · Who builds AndroidHarness and where to find it</string>
+    <string name="settings_search_author_desc">About · Who builds AgentX and where to find it</string>
 
     <!-- Settings · anchors. Referenced by both the search entry and the
          SettingsAnchor call so the pair can never drift apart. -->
@@ -309,10 +309,10 @@
     <string name="settings_restore_reconnect_title">Reconnect restored chats</string>
     <string name="settings_restore_reconnect_note">Read-only access stays read-only. Chats that used multiple workspaces need separate folders for each one.</string>
     <string name="settings_accounts_using_plan">You\'re using your ChatGPT plan</string>
-    <string name="settings_accounts_using_plan_desc">Eligible requests in AndroidHarness use your ChatGPT plan or credits. Review usage and manage this app\'s access in ChatGPT settings.</string>
+    <string name="settings_accounts_using_plan_desc">Eligible requests in AgentX use your ChatGPT plan or credits. Review usage and manage this app\'s access in ChatGPT settings.</string>
     <string name="settings_action_got_it">Got it</string>
     <string name="settings_accounts_signout_title">Sign out of this account?</string>
-    <string name="settings_accounts_signout_message">This disconnects the account from AndroidHarness and removes it from automatic switching. You can sign in again later.</string>
+    <string name="settings_accounts_signout_message">This disconnects the account from AgentX and removes it from automatic switching. You can sign in again later.</string>
     <string name="settings_action_continue">Continue</string>
     <string name="settings_progress_bar_subtitle">Choose how progress bars look. Applies immediately.</string>
     <string name="settings_provider_select">Select</string>
@@ -911,7 +911,7 @@
     <string name="chat_handoff_picker_note">Choose where to build. Your Chat plan comes along.</string>
     <string name="chat_handoff_close">Close workspace picker</string>
     <string name="chat_handoff_no_workspace">Add a workspace in Code to continue.</string>
-    <string name="chat_share_target">AndroidHarness Chat</string>
+    <string name="chat_share_target">AgentX Chat</string>
     <string name="chat_share_title">Share to Chat</string>
     <string name="chat_share_review">Review your shared items, choose a Chat, and add a question. Nothing is sent until you tap Send in Chat.</string>
     <string name="chat_share_new">New Chat</string>

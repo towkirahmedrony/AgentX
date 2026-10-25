@@ -2,7 +2,7 @@
 <!--
   Locales the app ships translations for. Declared on <application> via
   android:localeConfig so Android 13+ lists them under Settings → Apps →
-  AndroidHarness → Language, and so the per-app language survives a reboot.
+  AgentX → Language, and so the per-app language survives a reboot.
   English stays the default, so it comes first.
 -->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">

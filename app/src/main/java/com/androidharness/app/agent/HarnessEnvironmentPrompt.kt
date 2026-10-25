@@ -31,6 +31,6 @@ internal object HarnessEnvironmentPrompt {
     }
 
     fun skillGuide(content: String?): String = content?.let {
-        "\n## AndroidHarness operating guide\nThe enabled environment skill is already loaded below; do not reload its main file. Supporting references are available through skill_view; load only the reference needed for the task. Live environment facts and current schemas take precedence over examples.\n$it\n"
+        "\n## AgentX operating guide\nThe enabled environment skill is already loaded below; do not reload its main file. Supporting references are available through skill_view; load only the reference needed for the task. Live environment facts and current schemas take precedence over examples.\n$it\n"
     }.orEmpty()
 }

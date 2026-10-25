@@ -311,7 +311,7 @@ class AgentService : Service() {
 
     private fun buildNotification(text: String): Notification {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("AndroidHarness")
+            .setContentTitle("AgentX")
             .setContentText(localizedOptionLabel(text))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(appPendingIntent())

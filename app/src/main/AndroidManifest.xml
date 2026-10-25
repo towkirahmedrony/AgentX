@@ -69,7 +69,7 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true"
-        android:theme="@style/Theme.AndroidHarness">
+        android:theme="@style/Theme.AgentX">
 
         <!-- Persist language overrides on Android 12 and earlier; Android 13+
              shares the same preference with the system's per-app language UI. -->

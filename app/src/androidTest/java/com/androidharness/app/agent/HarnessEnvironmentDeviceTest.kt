@@ -78,9 +78,9 @@ class HarnessEnvironmentDeviceTest {
             assertTrue(requests[0].prompt.contains("Access mode: Auto"))
             assertTrue(requests[1].prompt.contains("Access mode: Normal"))
             for (request in requests) {
-                assertTrue(request.prompt.contains("## Live AndroidHarness environment"))
-                assertTrue(request.prompt.contains("## AndroidHarness operating guide"))
-                assertTrue(request.prompt.contains("Working inside AndroidHarness"))
+                assertTrue(request.prompt.contains("## Live AgentX environment"))
+                assertTrue(request.prompt.contains("## AgentX operating guide"))
+                assertTrue(request.prompt.contains("Working inside AgentX"))
                 assertTrue(request.prompt.contains(root.path))
                 assertTrue(request.prompt.contains("app-owned workspace uses the app UID"))
                 assertTrue(request.prompt.contains("snapshot, not an execution receipt"))
@@ -103,7 +103,7 @@ class HarnessEnvironmentDeviceTest {
             val request = requests.single()
             assertEquals(setOf("web_fetch"), request.names)
             assertTrue(request.prompt.contains("Section: Chat"))
-            assertFalse(request.prompt.contains("## AndroidHarness operating guide"))
+            assertFalse(request.prompt.contains("## AgentX operating guide"))
             assertFalse(request.prompt.contains(root.path))
             assertFalse(request.prompt.contains(c.linuxEnv.prefix.path))
             assertFalse(request.prompt.substringAfter("## Tools available for this request").contains("web_search"))
@@ -121,7 +121,7 @@ class HarnessEnvironmentDeviceTest {
             val request = requests.single()
             assertEquals(setOf("read_file"), request.names)
             assertTrue(request.prompt.contains("agent mode: PLAN"))
-            assertFalse(request.prompt.contains("## AndroidHarness operating guide"))
+            assertFalse(request.prompt.contains("## AgentX operating guide"))
             assertTrue(request.prompt.contains("Only read-only tools are exposed"))
         } finally { root.deleteRecursively() }
     }
@@ -177,7 +177,7 @@ class HarnessEnvironmentDeviceTest {
             assertEquals(3, requests.size)
             val nested = requests[1]
             assertTrue(nested.prompt.contains("read-only research subagent"))
-            assertTrue(nested.prompt.contains("## AndroidHarness operating guide"))
+            assertTrue(nested.prompt.contains("## AgentX operating guide"))
             assertTrue(nested.prompt.contains("agent mode: PLAN"))
             assertEquals(setOf("read_file"), nested.names)
         } finally { root.deleteRecursively() }

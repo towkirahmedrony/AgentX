@@ -36,7 +36,7 @@ fun shizukuDiagnostic(granted: Boolean, ready: Boolean, binding: Boolean, failed
 /** Export a whitelist of states, never configuration, names, paths or raw errors. */
 fun diagnosticReport(version: String, androidApi: Int, states: Map<DiagnosticArea, DiagnosticState>,
     providerCount: Int, enabledToolCount: Int): String = buildString {
-    appendLine("AndroidHarness troubleshooting")
+    appendLine("AgentX troubleshooting")
     // Only a build version's conventional characters may enter the export.
     appendLine("App: ${version.filter { it.isLetterOrDigit() || it in ".-+" }.take(40)}")
     appendLine("Android API: $androidApi")

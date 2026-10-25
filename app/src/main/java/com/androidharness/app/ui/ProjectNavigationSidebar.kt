@@ -150,7 +150,7 @@ internal fun ProjectNavigationSidebar(
                     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 18.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         HarnessMark(26.dp, Modifier.semantics { contentDescription = uiContext.getString(R.string.ui_androidharness_icon) })
-                        Text("AndroidHarness", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall,
+                        Text("AgentX", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         IconButton(onClick = onCollapse) { Icon(Icons.AutoMirrored.Outlined.MenuOpen, uiContext.getString(R.string.ui_collapse_sidebar), Modifier.size(19.dp)) }
                     }

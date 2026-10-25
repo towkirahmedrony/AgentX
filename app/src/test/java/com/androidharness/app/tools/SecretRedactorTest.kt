@@ -69,7 +69,7 @@ class SecretRedactorTest {
 
     @Test
     fun `plain urls without userinfo are untouched`() {
-        val src = "https://github.com/Sanuu7/AndroidHarness.git https://example.com/a?b=1"
+        val src = "https://github.com/towkirahmedrony/AgentX.git https://example.com/a?b=1"
         assertTrue(SecretRedactor.redact(src) == src)
     }
 
@@ -172,7 +172,7 @@ class SecretRedactorTest {
     fun `paths and prose survive`() {
         val raw = """
             /data/data/com.androidharness.app/files/workspace/src/main/kotlin/Main.kt
-            PWD=/home/sanuu/sanukey/coding/AndroidHarness
+            PWD=/home/sanuu/sanukey/coding/AgentX
             The quick brown fox jumps over the lazy dog and then wanders off again.
             http://127.0.0.1:8080/health
         """.trimIndent()

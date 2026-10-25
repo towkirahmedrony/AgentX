@@ -635,7 +635,7 @@
     <string name="ui_shizuku_is_disabled">"Shizuku 已停用"</string>
     <string name="ui_shizuku_is_no_longer_available_its_server">"Shizuku 已不可用。服务器可能已停止、被后台终止，"</string>
     <string name="ui_in_the_background_or_this_app_s">"或此应用的访问权限已被撤销。"</string>
-    <string name="ui_start_shizuku_and_allow_androidharness_access_to">"启动 Shizuku 并允许 AndroidHarness 访问，以再次使用。"</string>
+    <string name="ui_start_shizuku_and_allow_androidharness_access_to">"启动 Shizuku 并允许 AgentX 访问，以再次使用。"</string>
     <string name="ui_never_show_this_message_again">"不再显示此消息"</string>
     <string name="ui_limits_resets">"限制与重置"</string>
     <string name="ui_view_live_limits_in_chatgpt">"在 ChatGPT 中查看实时限制"</string>
@@ -1108,7 +1108,7 @@
     <string name="ui_the_app_needs_node_python_from_the">"需要 Linux 环境提供 node/python。"</string>
     <string name="ui_not_installed_optional">"未安装：可选。"</string>
     <string name="ui_installed_not_running">"已安装，未运行。"</string>
-    <string name="ui_running_grant_androidharness_access">"正在运行：请授予 AndroidHarness 访问权限。"</string>
+    <string name="ui_running_grant_androidharness_access">"正在运行：请授予 AgentX 访问权限。"</string>
     <string name="ui_connected_shell_privileges_ready">"已连接：Shell 权限就绪。"</string>
     <string name="ui_connected_in_compatibility_mode_shell_privileges_ready">"已通过兼容模式连接：Shell 权限就绪。"</string>
     <string name="ui_access_granted_connecting_to_the_shell_runner">"已授权。正在连接 Shell 执行器…"</string>
@@ -1155,10 +1155,10 @@
     <string name="ui_open_source">"开源"</string>
     <string name="ui_use_it_change_it_ship_it_even">"你可以使用、修改和发布它，包括用于商业应用。唯一要求是"</string>
     <string name="ui_copyright_notice_and_the_license_text_travel">"版权声明和许可证文本随代码保留。本软件不提供任何担保。"</string>
-    <string name="ui_androidharness_is_built_on_open_source_work">"AndroidHarness 基于开源成果构建，并借鉴了先前智能体的设计。"</string>
+    <string name="ui_androidharness_is_built_on_open_source_work">"AgentX 基于开源成果构建，并借鉴了先前智能体的设计。"</string>
     <string name="ui_built_with">"使用的项目"</string>
     <string name="ui_inspired_by">"灵感来源"</string>
-    <string name="ui_every_project_keeps_its_own_license_androidharness">"各项目保留各自的许可证。AndroidHarness 与这些项目无隶属关系。"</string>
+    <string name="ui_every_project_keeps_its_own_license_androidharness">"各项目保留各自的许可证。AgentX 与这些项目无隶属关系。"</string>
     <string name="ui_exported_chats_messages">"已导出 %1$s 个聊天（%2$s 条消息，%3$s 条记忆）。"</string>
     <string name="ui_export_failed">"导出失败。"</string>
     <string name="ui_export_failed_1230">"导出失败：%1$s"</string>
@@ -1247,7 +1247,7 @@
     <string name="ui_status">"状态"</string>
     <string name="ui_retry_resume">"重试 / 恢复"</string>
     <string name="ui_pause_telegram">"暂停 Telegram"</string>
-    <string name="ui_welcome_to_androidharness">"欢迎使用 AndroidHarness"</string>
+    <string name="ui_welcome_to_androidharness">"欢迎使用 AgentX"</string>
     <string name="ui_grant_storage_access_to_start_coding_notifications">"授予存储访问权限以开始编程。通知和其他工具为可选项。"</string>
     <string name="ui_device_storage_access_granted">"已获得设备存储访问权限"</string>
     <string name="ui_required_allow_access_to_device_files_and">"必需：允许访问设备文件和文件夹"</string>
@@ -1585,7 +1585,7 @@
     <string name="ui_access_mode">"访问模式：%1$s"</string>
     <string name="ui_scheduled_tasks">"定时任务"</string>
     <string name="ui_project_and_chat_sidebar">"项目与聊天侧边栏"</string>
-    <string name="ui_androidharness_icon">"AndroidHarness 图标"</string>
+    <string name="ui_androidharness_icon">"AgentX 图标"</string>
     <string name="ui_collapse_sidebar">"收起侧边栏"</string>
     <string name="ui_search_chats_and_messages">"搜索聊天和消息"</string>
     <string name="ui_search_chats">"搜索聊天"</string>

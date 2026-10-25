@@ -21,7 +21,7 @@ internal suspend fun collectShizukuStartupLog(packageName: String, sinceMillis: 
         try {
             check(Shizuku.pingBinder()) { "Shizuku is not running. Start it and retry." }
             check(Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
-                "Grant AndroidHarness access in Shizuku, then retry."
+                "Grant AgentX access in Shizuku, then retry."
             }
             // This legacy server transaction is available through API 13. Keep it limited
             // to this diagnostic read; normal commands continue to use the user service.

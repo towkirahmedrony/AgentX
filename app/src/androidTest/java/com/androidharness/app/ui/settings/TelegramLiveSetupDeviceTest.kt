@@ -68,7 +68,7 @@ class TelegramLiveSetupDeviceTest {
                     val updateId = connection.offset + index + 1
                     incoming.send(listOf(TelegramUpdate(updateId,
                         TelegramAccount(requireNotNull(connection.ownerId), requireNotNull(connection.ownerChatId), "Test owner"),
-                        "AndroidHarness authorized integration test. Read input-$index.txt with your file tool, then write output-$index.txt with exactly the same text. Reply with the text you read and confirm the file was written. Do not run shell commands or change other files.")))
+                        "AgentX authorized integration test. Read input-$index.txt with your file tool, then write output-$index.txt with exactly the same text. Reply with the text you read and confirm the file was written. Do not run shell commands or change other files.")))
                     withTimeout(180000) { while (store.request(updateId)?.status !in listOf(TelegramRequestStatus.COMPLETED,
                         TelegramRequestStatus.FAILED, TelegramRequestStatus.INTERRUPTED)) delay(250) }
                     val request = requireNotNull(store.request(updateId))

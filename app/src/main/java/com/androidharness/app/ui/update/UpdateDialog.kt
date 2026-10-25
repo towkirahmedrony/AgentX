@@ -381,7 +381,7 @@ private fun ReleaseAvailableContent(release: UpdateManager.LatestRelease) {
                     media = false,
                     onOpenUrl = { url ->
                         val finalUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                            "https://github.com/Sanuu7/AndroidHarness/blob/main/$url"
+                            "https://github.com/towkirahmedrony/AgentX/blob/main/$url"
                         } else url
                         runCatching {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl)))

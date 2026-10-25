@@ -133,7 +133,7 @@ class BrowserToolsTest {
     @Test
     fun `workspace path normalization follows the contract`() {
         val norm = BrowserController::normalizeWorkspacePath
-        val root = "/storage/emulated/0/AndroidHarness"
+        val root = "/storage/emulated/0/AgentX"
         // plain and ./-relative names
         assertEquals("index.html", norm("index.html", root))
         assertEquals("index.html", norm("./index.html", root))

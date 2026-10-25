@@ -41,7 +41,7 @@ class EnvStatusTool(
             ShizukuState.NOT_RUNNING ->
                 "installed but the Shizuku service is not running (start it in the Shizuku app or via adb)"
             ShizukuState.RUNNING_NO_PERMISSION ->
-                "running, but AndroidHarness has not been granted access (user: Settings → Terminal → Grant Shizuku access)"
+                "running, but AgentX has not been granted access (user: Settings → Terminal → Grant Shizuku access)"
             ShizukuState.GRANTED -> when (shizuku.serviceState.value) {
                 UserServiceState.BOUND_READY -> "running and the privileged runner is connected ✓"
                 UserServiceState.COMPAT_READY -> "running and the privileged runner is connected in compatibility mode ✓"

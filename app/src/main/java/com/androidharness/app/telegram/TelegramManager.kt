@@ -83,13 +83,13 @@ internal class TelegramManager(
         errorMutable.value = null
         try { startService() } catch (e: Exception) {
             setup.setEnabled(false)
-            errorMutable.value = "Could not start Telegram. Keep AndroidHarness open and try enabling it again."
+            errorMutable.value = "Could not start Telegram. Keep AgentX open and try enabling it again."
             throw IllegalStateException(errorMutable.value)
         }
     }
     fun restoreIfEnabled() {
         if (setup.state.value.enabled) try { startService() } catch (_: Exception) {
-            errorMutable.value = "Open AndroidHarness and enable Telegram to reconnect."
+            errorMutable.value = "Open AgentX and enable Telegram to reconnect."
         }
     }
     @Synchronized fun startRuntime(owner: Any? = null) {

@@ -50,7 +50,7 @@ class ChatGptProvider(
         if (tools.isNotEmpty()) body["tools"] = buildJsonArray {
             add(buildJsonObject {
                 put("type", "namespace"); put("name", ChatGptProtocol.NAMESPACE)
-                put("description", "AndroidHarness tools for coding and working with the user's project.")
+                put("description", "AgentX tools for coding and working with the user's project.")
                 put("tools", body.getValue("tools"))
             })
         }

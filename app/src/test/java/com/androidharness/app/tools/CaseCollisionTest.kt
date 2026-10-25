@@ -11,7 +11,7 @@ class CaseCollisionTest {
 
     @Test
     fun `shared storage mounts are treated as case insensitive`() {
-        assertTrue(CaseCollision.insensitiveMount("/storage/emulated/0/AndroidHarness", false))
+        assertTrue(CaseCollision.insensitiveMount("/storage/emulated/0/AgentX", false))
         assertTrue(CaseCollision.insensitiveMount("/sdcard/ws", false))
     }
 

@@ -30,7 +30,5 @@ internal object HarnessEnvironmentPrompt {
         else -> "Files and other tools"
     }
 
-    fun skillGuide(content: String?): String = content?.let {
-        "\n## AgentX operating guide\nThe enabled environment skill is already loaded below; do not reload its main file. Supporting references are available through skill_view; load only the reference needed for the task. Live environment facts and current schemas take precedence over examples.\n$it\n"
-    }.orEmpty()
+    fun skillGuide(content: String?): String = if (content == null) "" else "\n## AgentX operating guide\nFor workspace, path, execution-tier, package or build details, load the ${SKILL} skill with skill_view; the live environment section below stays authoritative.\n"
 }

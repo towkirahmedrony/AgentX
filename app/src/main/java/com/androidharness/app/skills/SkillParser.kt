@@ -80,12 +80,8 @@ object SkillParser {
 fun buildSkillsPromptBlock(catalogIndex: String): String {
     if (catalogIndex.isBlank()) return ""
     return buildString {
-        append("## Skills (mandatory)\n")
-        append("Before replying, scan the skills below. If a skill matches or is even partially relevant ")
-        append("to your task, you MUST load it with skill_view(name) and follow its instructions. ")
-        append("Err on the side of loading. Skills contain specialized workflows that outperform ")
-        append("guessing. Load the skill even if you think you could handle the task with shell, ")
-        append("grep, or web_search.\n")
+        append("## Skills\n")
+        append("Skip skills for greetings and simple questions. When a task clearly matches a skill below, load it with skill_view(name) and follow it.\n")
         append("If a skill is outdated or wrong after you use it, patch it with skill_manage. ")
         append("After a difficult task that produced a reusable workflow, offer to save it as a skill.\n")
         append("If genuinely none apply, proceed without loading one.\n\n")
